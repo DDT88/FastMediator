@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35122.118
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastMediator", "FastMediator\FastMediator.csproj", "{AEC28E9B-3919-499A-BF18-9DB8DC934F8E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestConsole", "TestConsole\TestConsole.csproj", "{0B45B5E7-D488-438F-B211-7E270D089009}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AEC28E9B-3919-499A-BF18-9DB8DC934F8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEC28E9B-3919-499A-BF18-9DB8DC934F8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEC28E9B-3919-499A-BF18-9DB8DC934F8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEC28E9B-3919-499A-BF18-9DB8DC934F8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B45B5E7-D488-438F-B211-7E270D089009}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B45B5E7-D488-438F-B211-7E270D089009}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B45B5E7-D488-438F-B211-7E270D089009}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B45B5E7-D488-438F-B211-7E270D089009}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {51F1EBB7-E121-4BA5-96DF-255B38154AB2}
+	EndGlobalSection
+EndGlobal
