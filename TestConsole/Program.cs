@@ -9,10 +9,10 @@ public class Program
     public static void Main(string[] args)
     {
         // Se vuoi solo eseguire il test base, decommenta questo
-       RunBasicTest();
+       //RunBasicTest();
 
         // Esegui il benchmark completo
-       // var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
+        var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
         Console.WriteLine("Benchmark completato!");
     }
 
@@ -52,7 +52,13 @@ public class MediatorBenchmarks
     public void Setup()
     {
         var services = new ServiceCollection();
-        services.AddCustomMediator(scan => scan.FromAssemblyOf<MediatorBenchmarks>());
+        services.AddCustomMediator(scan => scan.FromAssemblyOf<MediatorBenchmarks>(), options =>
+        {
+            options.EnableDiagnostics = true;
+            options.EnableTiming = true;
+            options.EnableDetailedLogging = true;
+        });
+
         _serviceProvider = services.BuildServiceProvider();
         _mediator = _serviceProvider.GetRequiredService<Dispatcher>();
     }
