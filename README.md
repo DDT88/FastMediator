@@ -48,4 +48,3 @@ Parlando di possibili miglioramenti per la tua libreria FastMediator, ci sono di
 
 3. **Local-first processing**: Implementare strategie per elaborare le richieste localmente quando possibile, riducendo la latenza di rete.
 
-Quali di queste aree ti interesserebbe esplorare per prime? Ciascuna offre vantaggi diversi a seconda del caso d'uso principale della tua libreria.
