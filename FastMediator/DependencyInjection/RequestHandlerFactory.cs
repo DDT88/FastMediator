@@ -23,8 +23,17 @@ namespace FastMediator.DependencyInjection
                 // Crea la funzione di base che invoca l'handler
                 Func<TRequest, TResponse> pipeline = req => handler.Handle(req);
 
+
+                var orderedBehaviors = behaviors
+                         .Select(b => new {
+                             Behavior = b,
+                             Order = (b as IOrderedPipelineBehavior)?.Order ?? int.MaxValue
+                         })
+                         .OrderBy(x => x.Order)
+                         .Select(x => x.Behavior);
+
                 // Costruisci la pipeline in ordine inverso
-                foreach (var behavior in ((System.Collections.Generic.IEnumerable<IPipelineBehavior<TRequest, TResponse>>)behaviors).Reverse())
+                foreach (var behavior in orderedBehaviors)
                 {
                     var currentPipeline = pipeline;
                     pipeline = req => behavior.Handle(req, currentPipeline);

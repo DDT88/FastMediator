@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using FastMediator.Behaviors;
+using FastMediator.Configuration;
 using FastMediator.Core;
 using FastMediator.DependencyInjection;
 using FastMediator.Interfaces;
@@ -18,16 +20,40 @@ namespace FastMediator.DependencyInjection
         /// <summary>
         /// Aggiunge il mediator personalizzato con tutti gli handler registrati tramite scan
         /// </summary>
-        public static IServiceCollection AddCustomMediator(this IServiceCollection services)
+        public static IServiceCollection AddCustomMediator(this IServiceCollection services , Action<FastMediatorOptions> configureOptions = null)
         {
-            return AddCustomMediator(services, scan => scan.FromApplicationDependencies());
+            return AddCustomMediator(services, scan => scan.FromApplicationDependencies() ,configureOptions);
         }
 
         /// <summary>
         /// Aggiunge il mediator personalizzato con configurazione personalizzata per lo scanner
         /// </summary>
-        public static IServiceCollection AddCustomMediator(this IServiceCollection services, Func<ITypeSourceSelector, IImplementationTypeSelector> configureScanner)
+        public static IServiceCollection AddCustomMediator(this IServiceCollection services, Func<ITypeSourceSelector, IImplementationTypeSelector> configureScanner
+            , Action<FastMediatorOptions> configureOptions = null)
         {
+            // Configura le opzioni
+            var options = new FastMediatorOptions();
+            configureOptions?.Invoke(options);
+
+            // opzioni disponibili per l'injection
+            services.AddSingleton(options);
+
+            // Registra i behavior diagnostici se abilitati
+            if (options.EnableDiagnostics)
+            {
+                services.AddTransient(typeof(IPipelineBehavior<,>), typeof(DiagnosticBehavior<,>));
+            }
+
+            if (options.EnableTiming)
+            {
+                services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TimingBehavior<,>));
+            }
+
+            if (options.EnableDetailedLogging)
+            {
+                services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+            }
+
             services.Scan(scan =>
             {
                 // Il configureScanner ora restituisce un IImplementationTypeSelector che possiamo continuare a usare
@@ -40,8 +66,13 @@ namespace FastMediator.DependencyInjection
                     .WithTransientLifetime()
                     .AddClasses(classes => classes.AssignableTo(typeof(IPipelineBehavior<,>)))
                     .AsImplementedInterfaces()
-                    .WithTransientLifetime();
+                    .WithTransientLifetime()
+                    .AddClasses(classes => classes.AssignableTo(typeof(IValidator<>)))
+                    .AsImplementedInterfaces()
+                    .WithTransientLifetime(); 
             });
+
+            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
             services.AddSingleton<Dispatcher>(sp =>
             {
