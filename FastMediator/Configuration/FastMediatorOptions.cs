@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.Logging;
 
 namespace FastMediator.Configuration
 {
@@ -26,5 +22,10 @@ namespace FastMediator.Configuration
         /// Indica se il logging dettagliato è abilitato
         /// </summary>
         public bool EnableDetailedLogging { get; set; } = false;
+
+        /// <summary>
+        /// Factory per la creazione di logger
+        /// </summary>
+        public ILoggerFactory LoggerFactory { get; set; }
     }
 }

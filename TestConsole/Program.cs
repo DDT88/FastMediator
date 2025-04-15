@@ -3,34 +3,50 @@ using BenchmarkDotNet.Running;
 using FastMediator.Core;
 using FastMediator.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 
 public class Program
 {
     public static void Main(string[] args)
     {
         // Se vuoi solo eseguire il test base, decommenta questo
-       //RunBasicTest();
+       RunBasicTest();
 
         // Esegui il benchmark completo
-        var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
+        //var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
         Console.WriteLine("Benchmark completato!");
     }
 
     private static void RunBasicTest()
     {
         var services = new ServiceCollection();
+
+
+        // Aggiungi il logging di base
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Debug);
+        });
+
+        // Ottieni il LoggerFactory
+        var serviceProvider = services.BuildServiceProvider();
+        var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+
         services.AddCustomMediator(scan => scan.FromAssemblyOf<Program>(),options =>
         {
-            options.EnableDiagnostics = true;
-            options.EnableTiming = true;
+            options.EnableDiagnostics = false;
+            options.EnableTiming = false;
             options.EnableDetailedLogging = true;
+            options.LoggerFactory = loggerFactory; // Passa il LoggerFactory alla configurazione
         });
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<Dispatcher>();
 
         try
         {
-            var result = mediator.Send(new Ping("Hello Mediator!"));
+            var result = mediator.Send(new Ping(null));
             Console.WriteLine($"Risultato: {result}");
         }
         catch (Exception ex)
