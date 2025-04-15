@@ -1,4 +1,5 @@
 ﻿using System;
+using FastMediator.Caching;
 using FastMediator.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,23 +12,26 @@ namespace FastMediator.DependencyInjection
         // Metodo statico che crea il delegato per l'handler
         public static Action<IServiceProvider, object> CreateHandler()
         {
-            return (provider, notification) =>
+            return DelegateCache.Instance.GetOrCreateNotificationHandler<TNotification>(() =>
             {
-                var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-
-                // Crea un nuovo scope
-                using (var scope = scopeFactory.CreateScope())
+                return (provider, notification) =>
                 {
-                    // Ottieni tutti gli handler per questa notifica dallo scope creato
-                    var handlers = scope.ServiceProvider.GetServices<INotificationHandler<TNotification>>();
+                    var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
-                    // Chiama tutti gli handler
-                    foreach (var handler in handlers)
+                    // Crea un nuovo scope
+                    using (var scope = scopeFactory.CreateScope())
                     {
-                        handler.Handle((TNotification)notification);
+                        // Ottieni tutti gli handler per questa notifica dallo scope creato
+                        var handlers = scope.ServiceProvider.GetServices<INotificationHandler<TNotification>>();
+
+                        // Chiama tutti gli handler
+                        foreach (var handler in handlers)
+                        {
+                            handler.Handle((TNotification)notification);
+                        }
                     }
-                }
-            };
+                };
+            });
         }
     }
 }

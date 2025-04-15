@@ -38,23 +38,35 @@ public class Program
         {
             options.EnableDiagnostics = false;
             options.EnableTiming = false;
-            options.EnableDetailedLogging = true;
+            options.EnableDetailedLogging = false;
             options.LoggerFactory = loggerFactory; // Passa il LoggerFactory alla configurazione
         });
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<Dispatcher>();
 
+      
+
         try
         {
-            var result = mediator.Send(new Ping("ciao"));
-            Console.WriteLine($"Risultato: {result}");
+
+            for (int i = 0; i < 10; i++)
+            {
+                mediator.Send(new Ping($"Test {i}"));
+            }
+
+            var stats = mediator.GetRequestHandlerCacheStats();
+            Console.WriteLine($"Dopo 10 richieste - Cache hits: {stats.Hits}, misses: {stats.Misses}");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] {ex.Message}");
         }
 
-        mediator.Publish(new SomethingHappened { Message = "Boom" });
+      //  mediator.Publish(new SomethingHappened { Message = "Boom" });
+
+        
+       
+
     }
 }
 
