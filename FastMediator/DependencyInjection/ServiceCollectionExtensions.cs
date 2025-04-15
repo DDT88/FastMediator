@@ -8,6 +8,7 @@ using FastMediator.Core;
 using FastMediator.DependencyInjection;
 using FastMediator.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Scrutor;
 
 namespace FastMediator.DependencyInjection
@@ -24,6 +25,40 @@ namespace FastMediator.DependencyInjection
         {
             return AddCustomMediator(services, scan => scan.FromApplicationDependencies() ,configureOptions);
         }
+
+
+
+        /// <summary>
+        /// Aggiunge il mediator personalizzato specificando esplicitamente un ILoggerFactory
+        /// </summary>
+        public static IServiceCollection AddCustomMediator(
+            this IServiceCollection services,
+            ILoggerFactory loggerFactory,
+            Action<FastMediatorOptions> configureOptions = null)
+        {
+            return AddCustomMediator(services, scan => scan.FromApplicationDependencies(), options =>
+            {
+                options.LoggerFactory = loggerFactory;
+                configureOptions?.Invoke(options);
+            });
+        }
+
+        /// <summary>
+        /// Aggiunge il mediator personalizzato con configurazione personalizzata per lo scanner e un ILoggerFactory esplicito
+        /// </summary>
+        public static IServiceCollection AddCustomMediator(
+            this IServiceCollection services,
+            Func<ITypeSourceSelector, IImplementationTypeSelector> configureScanner,
+            ILoggerFactory loggerFactory,
+            Action<FastMediatorOptions> configureOptions = null)
+        {
+            return AddCustomMediator(services, configureScanner, options =>
+            {
+                options.LoggerFactory = loggerFactory;
+                configureOptions?.Invoke(options);
+            });
+        }
+
 
         /// <summary>
         /// Aggiunge il mediator personalizzato con configurazione personalizzata per lo scanner

@@ -1,4 +1,7 @@
-﻿using FastMediator.Interfaces;
+﻿using FastMediator.Configuration;
+using FastMediator.Interfaces;
+using FastMediator.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,17 +17,29 @@ namespace FastMediator.Behaviors
     public class TimingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
         where TRequest : IRequest<TResponse>
     {
+        private readonly ILogger<TimingBehavior<TRequest, TResponse>> _logger;
+        private readonly FastMediatorOptions _options;
         public int Order => 998; // Priorità bassa, eseguito quasi per ultimo
+
+
+        /// <summary>
+        /// Inizializza una nuova istanza del behavior di timing
+        /// </summary>
+        public TimingBehavior(FastMediatorOptions options)
+        {
+            _options = options;
+            _logger = MediatorLoggerFactory.CreateLogger<TimingBehavior<TRequest, TResponse>>(options);
+        }
 
         public TResponse Handle(TRequest request, Func<TRequest, TResponse> next)
         {
             var stopwatch = Stopwatch.StartNew();
-            Console.WriteLine($"[Timing] Iniziando elaborazione {typeof(TRequest).Name}");
+            _logger.LogInformation($"[Timing] Iniziando elaborazione {typeof(TRequest).Name}");
 
             var response = next(request);
 
             stopwatch.Stop();
-            Console.WriteLine($"[Timing] Completata elaborazione {typeof(TRequest).Name} in {stopwatch.ElapsedMilliseconds}ms");
+            _logger.LogInformation($"[Timing] Completata elaborazione {typeof(TRequest).Name} in {stopwatch.ElapsedMilliseconds}ms");
 
             return response;
         }

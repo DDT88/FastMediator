@@ -1,64 +1,77 @@
-﻿using FastMediator.Interfaces;
+﻿using FastMediator.Configuration;
+using FastMediator.Interfaces;
+using FastMediator.Logging;
 using FastMediator.Validation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FastMediator.Behaviors
 {
     /// <summary>
     /// Behavior che esegue la validazione delle richieste
     /// </summary>
+    /// <typeparam name="TRequest">Il tipo di richiesta</typeparam>
+    /// <typeparam name="TResponse">Il tipo di risposta</typeparam>
     public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
         where TRequest : IRequest<TResponse>
     {
-        private readonly IEnumerable<IValidator<TRequest>> _validators;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly ILogger<ValidationBehavior<TRequest, TResponse>> _logger;
+        private readonly FastMediatorOptions _options;
 
-        public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
+        /// <summary>
+        /// Inizializza una nuova istanza del behavior di validazione
+        /// </summary>
+        public ValidationBehavior(IServiceProvider serviceProvider, FastMediatorOptions options)
         {
-            _validators = validators;
+            _serviceProvider = serviceProvider;
+            _options = options;
+            _logger = MediatorLoggerFactory.CreateLogger<ValidationBehavior<TRequest, TResponse>>(options);
         }
 
-        public int Order => 1; // Alta priorità: la validazione dovrebbe essere eseguita presto
+        /// <summary>
+        /// Ordine di esecuzione del behavior (più basso = priorità maggiore)
+        /// </summary>
+        public int Order => -10; // Esegui prima degli altri behavior
 
+        /// <summary>
+        /// Gestisce la richiesta eseguendo la validazione
+        /// </summary>
         public TResponse Handle(TRequest request, Func<TRequest, TResponse> next)
         {
-            // Se non ci sono validatori per questo tipo di richiesta, procedi
-            if (!_validators.Any())
+            // Ottieni tutti i validatori per questo tipo di richiesta
+            var validators = _serviceProvider.GetServices<IValidator<TRequest>>().ToList();
+
+            if (validators.Any())
             {
-                return next(request);
+                _logger.LogDebug("Trovati {ValidatorCount} validatori per la richiesta {RequestType}",
+                    validators.Count, typeof(TRequest).Name);
+
+                // Esegui tutti i validatori e raccogli gli errori
+                var validationResults = new List<ValidationResult>();
+                foreach (var validator in validators)
+                {
+                    var result = validator.Validate(request);
+                    validationResults.Add(result);
+                }
+
+                // Verifica se ci sono errori di validazione
+                var errors = validationResults
+                    .SelectMany(r => r.Errors)
+                    .Where(e => e != null)
+                    .ToList();
+
+                if (errors.Any())
+                {
+                    _logger.LogWarning("Validazione fallita per la richiesta {RequestType}. Errori: {ErrorCount}",
+                        typeof(TRequest).Name, errors.Count);
+
+                    throw new ValidationException(errors);
+                }
             }
 
-            // Esegui tutti i validatori e unisci i risultati
-            var errors = _validators
-                .Select(v => v.Validate(request))
-                .SelectMany(result => result.Errors)
-                .ToList();
-
-            // Se ci sono errori, lancia un'eccezione
-            if (errors.Any())
-            {
-                throw new ValidationException(errors);
-            }
-
-            // Nessun errore, procedi con la pipeline
+            // La validazione è passata, procedi con la pipeline
             return next(request);
-        }
-    }
-
-    /// <summary>
-    /// Eccezione lanciata quando la validazione fallisce
-    /// </summary>
-    public class ValidationException : Exception
-    {
-        public IReadOnlyList<ValidationError> Errors { get; }
-
-        public ValidationException(IReadOnlyList<ValidationError> errors)
-            : base($"Validation failed: {errors.Count} error(s)")
-        {
-            Errors = errors;
         }
     }
 }

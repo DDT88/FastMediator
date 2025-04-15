@@ -1,4 +1,9 @@
-﻿using FastMediator.Interfaces;
+﻿using FastMediator.Configuration;
+using FastMediator.Interfaces;
+using FastMediator.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,14 +14,21 @@ using System.Threading.Tasks;
 namespace FastMediator.Behaviors
 {
     /// <summary>
-    /// Behavior che registra informazioni dettagliate sulle richieste e le risposte
+    /// Behavior che registra i log dettagliati delle richieste
     /// </summary>
+    /// <typeparam name="TRequest">Il tipo di richiesta</typeparam>
+    /// <typeparam name="TResponse">Il tipo di risposta</typeparam>
     public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
         where TRequest : IRequest<TResponse>
     {
         private readonly JsonSerializerOptions _jsonOptions;
+        private readonly ILogger _logger;
+        private readonly FastMediatorOptions _options;
 
-        public LoggingBehavior()
+        /// <summary>
+        /// Inizializza una nuova istanza del behavior di logging
+        /// </summary>
+        public LoggingBehavior(FastMediatorOptions options)
         {
             _jsonOptions = new JsonSerializerOptions
             {
@@ -24,6 +36,9 @@ namespace FastMediator.Behaviors
                 MaxDepth = 10,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
+            _options = options;
+
+            _logger = MediatorLoggerFactory.CreateLogger<LoggingBehavior<TRequest, TResponse>>(options);
         }
 
         public int Order => 10; // Priorità media-alta, eseguito abbastanza presto ma dopo la validazione
@@ -34,23 +49,22 @@ namespace FastMediator.Behaviors
             var requestId = Guid.NewGuid().ToString("N"); // ID univoco per tracciare la richiesta
 
             // Log della richiesta
-            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [LoggingBehavior] [Request {requestId}] {requestType}");
-            Console.WriteLine($"Request Details:");
+            _logger.LogInformation($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [LoggingBehavior] [Request {requestId}] {requestType}");
+            _logger.LogInformation($"Request Details:");
 
             try
             {
                 // Serializza la richiesta in JSON per visualizzare tutti i campi
                 var requestJson = JsonSerializer.Serialize(request, _jsonOptions);
-                Console.WriteLine(requestJson);
+                _logger.LogInformation(requestJson);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Impossibile serializzare la richiesta: {ex.Message}");
+                _logger.LogError($"[ERROR] Impossibile serializzare la richiesta: {ex.Message}");
                 // Fallback: stampa le proprietà manualmente
                 PrintObjectProperties(request);
             }
 
-            Console.WriteLine();
 
             // Esegui l'handler e misura il tempo
             var startTime = DateTime.Now;
@@ -64,21 +78,21 @@ namespace FastMediator.Behaviors
                 var endTime = DateTime.Now;
                 var duration = (endTime - startTime).TotalMilliseconds;
 
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [LoggingBehavior] [Response {requestId}] {requestType} - Completata in {duration:F2}ms");
+                _logger.LogInformation($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [LoggingBehavior] [Response {requestId}] {requestType} - Completata in {duration:F2}ms");
 
                 // Se la risposta non è void o unit, logga anche i dettagli della risposta
                 if (typeof(TResponse) != typeof(System.Threading.Tasks.Task) &&
                     !IsUnitType(typeof(TResponse)))
                 {
-                    Console.WriteLine("Response Details:");
+                    _logger.LogInformation("Response Details:");
                     try
                     {
                         var responseJson = JsonSerializer.Serialize(response, _jsonOptions);
-                        Console.WriteLine(responseJson);
+                        _logger.LogInformation(responseJson);
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[ERROR] Impossibile serializzare la risposta: {ex.Message}");
+                        _logger.LogError($"[ERROR] Impossibile serializzare la risposta: {ex.Message}");
                         PrintObjectProperties(response);
                     }
                 }
@@ -89,15 +103,14 @@ namespace FastMediator.Behaviors
                 var endTime = DateTime.Now;
                 var duration = (endTime - startTime).TotalMilliseconds;
 
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [LoggingBehavior] [Exception {requestId}] {requestType} - Fallita dopo {duration:F2}ms");
-                Console.WriteLine($"Exception: {ex.GetType().Name}: {ex.Message}");
-                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+                _logger.LogError($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [LoggingBehavior] [Exception {requestId}] {requestType} - Fallita dopo {duration:F2}ms");
+                _logger.LogError($"Exception: {ex.GetType().Name}: {ex.Message}");
+                _logger.LogError($"StackTrace: {ex.StackTrace}");
 
                 // Rilancia l'eccezione
                 throw;
             }
 
-            Console.WriteLine();
             return response;
         }
 
@@ -113,7 +126,7 @@ namespace FastMediator.Behaviors
         {
             if (obj == null)
             {
-                Console.WriteLine("null");
+                _logger.LogInformation("null");
                 return;
             }
 
@@ -135,7 +148,7 @@ namespace FastMediator.Behaviors
             }
             builder.AppendLine("}");
 
-            Console.WriteLine(builder.ToString());
+            _logger.LogInformation(builder.ToString());
         }
     }
 }

@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FastMediator.Validation
 {
@@ -11,54 +8,50 @@ namespace FastMediator.Validation
     /// </summary>
     public class ValidationResult
     {
-        private readonly List<ValidationError> _errors = new();
+        private readonly List<ValidationError> _errors = new List<ValidationError>();
 
         /// <summary>
-        /// Indica se la validazione è stata superata
+        /// Ottiene tutti gli errori di validazione
+        /// </summary>
+        public IReadOnlyList<ValidationError> Errors => _errors;
+
+        /// <summary>
+        /// Indica se la validazione è passata
         /// </summary>
         public bool IsValid => !_errors.Any();
 
         /// <summary>
-        /// Gli errori rilevati durante la validazione
+        /// Aggiunge un errore di validazione
         /// </summary>
-        public IReadOnlyList<ValidationError> Errors => _errors.AsReadOnly();
-
-        /// <summary>
-        /// Aggiunge un errore alla lista
-        /// </summary>
+        /// <param name="propertyName">Il nome della proprietà</param>
+        /// <param name="errorMessage">Il messaggio di errore</param>
         public void AddError(string propertyName, string errorMessage)
         {
             _errors.Add(new ValidationError(propertyName, errorMessage));
         }
 
         /// <summary>
-        /// Aggiunge un errore generico (non associato a una proprietà specifica)
+        /// Aggiunge un errore di validazione
         /// </summary>
-        public void AddError(string errorMessage)
+        /// <param name="error">L'errore di validazione</param>
+        public void AddError(ValidationError error)
         {
-            _errors.Add(new ValidationError(string.Empty, errorMessage));
+            if (error != null)
+            {
+                _errors.Add(error);
+            }
         }
-    }
-
-    /// <summary>
-    /// Rappresenta un singolo errore di validazione
-    /// </summary>
-    public class ValidationError
-    {
-        /// <summary>
-        /// Il nome della proprietà che ha causato l'errore
-        /// </summary>
-        public string PropertyName { get; }
 
         /// <summary>
-        /// Il messaggio di errore
+        /// Aggiunge una collezione di errori di validazione
         /// </summary>
-        public string ErrorMessage { get; }
-
-        public ValidationError(string propertyName, string errorMessage)
+        /// <param name="errors">Gli errori di validazione</param>
+        public void AddErrors(IEnumerable<ValidationError> errors)
         {
-            PropertyName = propertyName;
-            ErrorMessage = errorMessage;
+            if (errors != null)
+            {
+                _errors.AddRange(errors);
+            }
         }
     }
 }
