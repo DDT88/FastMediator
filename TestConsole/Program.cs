@@ -1,25 +1,33 @@
 ﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
+using FastMediator.Configuration;
 using FastMediator.Core;
 using FastMediator.DependencyInjection;
+using FastMediator.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using System.Diagnostics;
+using TestConsole;
 
 public class Program
 {
     public static void Main(string[] args)
     {
         // Se vuoi solo eseguire il test base, decommenta questo
-       RunBasicTest();
+       //RunBasicTest();
 
         // Esegui il benchmark completo
-        //var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
+        var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
         Console.WriteLine("Benchmark completato!");
     }
 
     private static void RunBasicTest()
     {
+        var stopwatch = Stopwatch.StartNew();
+        Console.WriteLine($"Avvio elaborazione");
+
         var services = new ServiceCollection();
 
 
@@ -27,7 +35,7 @@ public class Program
         services.AddLogging(builder =>
         {
             builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.SetMinimumLevel(LogLevel.Information);
         });
 
         // Ottieni il LoggerFactory
@@ -40,94 +48,33 @@ public class Program
             options.EnableTiming = false;
             options.EnableDetailedLogging = false;
             options.LoggerFactory = loggerFactory; // Passa il LoggerFactory alla configurazione
+            options.UseHybridMode().WithWarmup<PingRequest>();
         });
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<Dispatcher>();
-
+       
       
-
         try
         {
 
             for (int i = 0; i < 10; i++)
             {
-                mediator.Send(new Ping($"Test {i}"));
+                mediator.Send(new PingRequest($"Test {i}"));
             }
 
             var stats = mediator.GetRequestHandlerCacheStats();
-            Console.WriteLine($"Dopo 10 richieste - Cache hits: {stats.Hits}, misses: {stats.Misses}");
+          //  Console.WriteLine($"Dopo 10 richieste - Cache hits: {stats.Hits}, misses: {stats.Misses}");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] {ex.Message}");
         }
+        stopwatch.Stop();
+        Console.WriteLine($"[Timing] Completata elaborazione in {stopwatch.ElapsedMilliseconds}ms");
+        //  mediator.Publish(new SomethingHappened { Message = "Boom" });
 
-      //  mediator.Publish(new SomethingHappened { Message = "Boom" });
 
-        
-       
 
-    }
-}
 
-[MemoryDiagnoser]  // Questo misura anche l'allocazione di memoria
-public class MediatorBenchmarks
-{
-    private IServiceProvider _serviceProvider;
-    private Dispatcher _mediator;
-
-    [GlobalSetup]
-    public void Setup()
-    {
-        var services = new ServiceCollection();
-        services.AddCustomMediator(scan => scan.FromAssemblyOf<MediatorBenchmarks>(), options =>
-        {
-            options.EnableDiagnostics = true;
-            options.EnableTiming = true;
-            options.EnableDetailedLogging = true;
-        });
-
-        _serviceProvider = services.BuildServiceProvider();
-        _mediator = _serviceProvider.GetRequiredService<Dispatcher>();
-    }
-
-    [Benchmark(Baseline = true)]
-    public string SendSingleRequest()
-    {
-        return _mediator.Send(new Ping("Benchmark test"));
-    }
-
-    [Benchmark]
-    public void PublishSingleNotification()
-    {
-        _mediator.Publish(new SomethingHappened { Message = "Benchmark notification" });
-    }
-
-    [Benchmark]
-    public string[] SendMultipleRequests()
-    {
-        var results = new string[100];
-        for (int i = 0; i < 100; i++)
-        {
-            results[i] = _mediator.Send(new Ping($"Request {i}"));
-        }
-        return results;
-    }
-
-    [Benchmark]
-    public void SendRequestsWithDifferentTypes()
-    {
-        _mediator.Send(new Ping("First request"));
-        _mediator.Send(new ComplexRequest { Value = 42 });
-        _mediator.Send(new AnotherRequest { Name = "Test" });
-    }
-
-    [Benchmark]
-    public void MixedOperations()
-    {
-        _mediator.Send(new Ping("Mixed operation"));
-        _mediator.Publish(new SomethingHappened { Message = "Event 1" });
-        _mediator.Send(new ComplexRequest { Value = 100 });
-        _mediator.Publish(new AnotherEvent { Id = 1 });
     }
 }
