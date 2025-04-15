@@ -1,6 +1,6 @@
 ﻿using FastMediator.Interfaces;
 
-public class PingHandler : IRequestHandler<Ping, string>
+public class PingHandler : IRequestHandler<PingRequest, string>
 {
-    public string Handle(Ping request) => $"Risposta a: {request.Message}";
+    public string Handle(PingRequest request) => $"Risposta a: {request.Message}";
 }

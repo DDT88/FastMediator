@@ -114,29 +114,34 @@ namespace FastMediator.DependencyInjection
                 var handlerMap = new Dictionary<Type, Func<IServiceProvider, object, object>>();
                 var notificationMap = new Dictionary<Type, List<Action<IServiceProvider, object>>>();
 
-
-                // Ottieni tutti i tipi di handler registrati
-                var requestHandlerTypes = services
-                    .Where(sd => sd.ServiceType.IsGenericType &&
-                                 sd.ServiceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>))
-                    .ToList();
-
-                // Per ogni tipo di handler di richieste
-                foreach (var descriptor in requestHandlerTypes)
+                if (options.RegistrationMode == HandlerRegistrationMode.Startup ||
+                    options.RegistrationMode == HandlerRegistrationMode.Hybrid)
                 {
-                    var serviceType = descriptor.ServiceType;
-                    var requestType = serviceType.GenericTypeArguments[0];
-                    var responseType = serviceType.GenericTypeArguments[1];
 
-                    // Creiamo il tipo della factory
-                    var factoryType = typeof(RequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
+                    // Ottieni tutti i tipi di handler registrati
+                    var requestHandlerTypes = services
+                        .Where(sd => sd.ServiceType.IsGenericType &&
+                                     sd.ServiceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>))
+                        .ToList();
 
-                    // Chiamiamo il metodo statico CreateHandler
-                    var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
-                    var handlerDelegate = (Func<IServiceProvider, object, object>)createMethod.Invoke(null, null);
+                    // Per ogni tipo di handler di richieste
+                    foreach (var descriptor in requestHandlerTypes)
+                    {
+                        var serviceType = descriptor.ServiceType;
+                        var requestType = serviceType.GenericTypeArguments[0];
+                        var responseType = serviceType.GenericTypeArguments[1];
 
-                    // Aggiungiamo il delegato alla mappa
-                    handlerMap[requestType] = handlerDelegate;
+                        // Creiamo il tipo della factory
+                        var factoryType = typeof(RequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
+
+                        // Chiamiamo il metodo statico CreateHandler
+                        var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
+                        var handlerDelegate = (Func<IServiceProvider, object, object>)createMethod.Invoke(null, null);
+
+                        // Aggiungiamo il delegato alla mappa
+                        handlerMap[requestType] = handlerDelegate;
+                    }
+
                 }
 
                 // Ottieni tutti i tipi di handler di notifiche registrati
@@ -164,7 +169,7 @@ namespace FastMediator.DependencyInjection
                     notificationMap[notificationType].Add(handlerAction);
                 }
 
-                return new Dispatcher(sp, handlerMap, notificationMap);
+                return new Dispatcher(sp, handlerMap, notificationMap,options);
             });
 
             return services;

@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using FastMediator.Caching;
+using FastMediator.Configuration;
+using FastMediator.DependencyInjection;
 using FastMediator.Interfaces;
 
 namespace FastMediator.Core
@@ -13,17 +17,29 @@ namespace FastMediator.Core
         private readonly IServiceProvider _provider;
         private readonly Dictionary<Type, Func<IServiceProvider, object, object>> _handlers;
         private readonly Dictionary<Type, List<Action<IServiceProvider, object>>> _notificationHandlers;
+        private readonly FastMediatorOptions _options;
+
+        // Nuovi campi per l'approccio ibrido
+        private readonly ConcurrentDictionary<Type, object> _handlerFactories;
 
         /// <summary>
         /// Crea una nuova istanza del dispatcher
         /// </summary>
         public Dispatcher(IServiceProvider provider,
                           Dictionary<Type, Func<IServiceProvider, object, object>> handlers,
-                          Dictionary<Type, List<Action<IServiceProvider, object>>> notificationHandlers)
+                          Dictionary<Type, List<Action<IServiceProvider, object>>> notificationHandlers,
+                          FastMediatorOptions options)
         {
             _provider = provider;
             _handlers = handlers;
             _notificationHandlers = notificationHandlers;
+            _options = options;
+
+            // Se stiamo usando lazy loading o modalità ibrida, inizializza il dizionario delle factory
+            if (options.RegistrationMode != HandlerRegistrationMode.Startup)
+            {
+                _handlerFactories = new ConcurrentDictionary<Type, object>();
+            }
         }
 
         /// <summary>
@@ -35,9 +51,18 @@ namespace FastMediator.Core
         public TResponse Send<TResponse>(IRequest<TResponse> request)
         {
             var type = request.GetType();
-            if (!_handlers.TryGetValue(type, out var handler))
-                throw new InvalidOperationException($"Handler not found for request type {type.Name}");
+            // Approccio standard
+            if (_options.RegistrationMode == HandlerRegistrationMode.Startup || _handlers.ContainsKey(type))
+            {
+                if (!_handlers.TryGetValue(type, out var handlerStd))
+                    throw new InvalidOperationException($"Handler not found for request type {type.Name}");
 
+                return (TResponse)handlerStd(_provider, request);
+            }
+
+            // Approccio dinamico (lazy loading o ibrido per tipi non pre-registrati)
+            var responseType = typeof(TResponse);
+            var handler = GetOrCreateHandler(type, responseType);
             return (TResponse)handler(_provider, request);
         }
 
@@ -57,6 +82,26 @@ namespace FastMediator.Core
                 }
             }
         }
+
+
+        // Nuovo metodo per lazy loading degli handler
+        private Func<IServiceProvider, object, object> GetOrCreateHandler(Type requestType, Type responseType)
+        {
+            return _handlerFactories.GetOrAdd(requestType, _ => {
+                // Crea il tipo della factory
+                var factoryType = typeof(RequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
+
+                // Chiama il metodo statico CreateHandler
+                var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
+                var handlerDelegate = (Func<IServiceProvider, object, object>)createMethod.Invoke(null, null);
+
+                // Registra il delegato anche nella mappa principale per future chiamate
+                _handlers[requestType] = handlerDelegate;
+
+                return handlerDelegate;
+            }) as Func<IServiceProvider, object, object>;
+        }
+
 
         /// <summary>
         /// Ottiene le statistiche di utilizzo della cache degli handler delle richieste

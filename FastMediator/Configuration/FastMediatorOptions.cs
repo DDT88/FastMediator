@@ -27,5 +27,15 @@ namespace FastMediator.Configuration
         /// Factory per la creazione di logger
         /// </summary>
         public ILoggerFactory LoggerFactory { get; set; }
+
+        /// <summary>
+        /// Modalità di registrazione degli handler
+        /// </summary>
+        public HandlerRegistrationMode RegistrationMode { get; set; } = HandlerRegistrationMode.Startup;
+
+        /// <summary>
+        /// Lista dei tipi di request per cui fare il warmup all'avvio (solo per modalità ibrida)
+        /// </summary>
+        public List<Type> WarmupTypes { get; set; } = new List<Type>();
     }
 }
