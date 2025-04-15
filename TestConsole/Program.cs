@@ -46,7 +46,7 @@ public class Program
 
         try
         {
-            var result = mediator.Send(new Ping(null));
+            var result = mediator.Send(new Ping("ciao"));
             Console.WriteLine($"Risultato: {result}");
         }
         catch (Exception ex)

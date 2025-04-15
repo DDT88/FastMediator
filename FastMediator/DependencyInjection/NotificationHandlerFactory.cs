@@ -13,13 +13,19 @@ namespace FastMediator.DependencyInjection
         {
             return (provider, notification) =>
             {
-                // Ottieni tutti gli handler per questa notifica
-                var handlers = provider.GetServices<INotificationHandler<TNotification>>();
+                var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
-                // Chiama tutti gli handler
-                foreach (var handler in handlers)
+                // Crea un nuovo scope
+                using (var scope = scopeFactory.CreateScope())
                 {
-                    handler.Handle((TNotification)notification);
+                    // Ottieni tutti gli handler per questa notifica dallo scope creato
+                    var handlers = scope.ServiceProvider.GetServices<INotificationHandler<TNotification>>();
+
+                    // Chiama tutti gli handler
+                    foreach (var handler in handlers)
+                    {
+                        handler.Handle((TNotification)notification);
+                    }
                 }
             };
         }
