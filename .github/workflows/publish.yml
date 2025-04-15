@@ -28,7 +28,7 @@ jobs:
       run: dotnet test --no-restore --verbosity normal
     
     - name: Package
-      run: dotnet pack --configuration Release --no-build -o ./artifacts
+      run: dotnet pack ./FastMediator/FastMediator.csproj -c Release --no-build -o ./artifacts
     
     - name: Push to NuGet
-      run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      run: dotnet nuget push ./artifacts/FastMediator.*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
