@@ -77,42 +77,58 @@ namespace FastMediator.DependencyInjection
             if (options.EnableDiagnostics)
             {
                 services.AddTransient(typeof(IPipelineBehavior<,>), typeof(DiagnosticBehavior<,>));
+                services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(DiagnosticBehaviorAsync<,>));
             }
 
             if (options.EnableTiming)
             {
                 services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TimingBehavior<,>));
+                services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(TimingBehaviorAsync<,>));
             }
 
             if (options.EnableDetailedLogging)
             {
                 services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+                services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(LoggingBehaviorAsync<,>));
             }
 
             services.Scan(scan =>
             {
                 // Il configureScanner ora restituisce un IImplementationTypeSelector che possiamo continuare a usare
                 configureScanner(scan)
-                    .AddClasses(classes => classes.AssignableTo(typeof(IRequestHandler<,>)))
-                    .AsImplementedInterfaces()
-                    .WithTransientLifetime()
-                    .AddClasses(classes => classes.AssignableTo(typeof(INotificationHandler<>)))
-                    .AsImplementedInterfaces()
-                    .WithTransientLifetime()
-                    .AddClasses(classes => classes.AssignableTo(typeof(IPipelineBehavior<,>)))
-                    .AsImplementedInterfaces()
-                    .WithTransientLifetime()
-                    .AddClasses(classes => classes.AssignableTo(typeof(IValidator<>)))
-                    .AsImplementedInterfaces()
-                    .WithTransientLifetime(); 
+                   .AddClasses(classes => classes.AssignableTo(typeof(IRequestHandler<,>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   .AddClasses(classes => classes.AssignableTo(typeof(INotificationHandler<>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   .AddClasses(classes => classes.AssignableTo(typeof(IPipelineBehavior<,>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   .AddClasses(classes => classes.AssignableTo(typeof(IValidator<>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   // Aggiungiamo le registrazioni per gli handler asincroni
+                   .AddClasses(classes => classes.AssignableTo(typeof(IAsyncRequestHandler<,>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   .AddClasses(classes => classes.AssignableTo(typeof(IAsyncNotificationHandler<>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   .AddClasses(classes => classes.AssignableTo(typeof(IPipelineBehaviorAsync<,>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime();
             });
 
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+            services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(ValidationBehaviorAsync<,>));
 
             services.AddSingleton<Dispatcher>(sp =>
             {
                 var handlerMap = new Dictionary<Type, Func<IServiceProvider, object, object>>();
                 var notificationMap = new Dictionary<Type, List<Action<IServiceProvider, object>>>();
+                var asyncHandlerMap = new Dictionary<Type, Func<IServiceProvider, object, CancellationToken, Task<object>>>();
+                var asyncNotificationMap = new Dictionary<Type, List<Func<IServiceProvider, object, CancellationToken, Task>>>();
 
                 if (options.RegistrationMode == HandlerRegistrationMode.Startup ||
                     options.RegistrationMode == HandlerRegistrationMode.Hybrid)
@@ -140,6 +156,28 @@ namespace FastMediator.DependencyInjection
 
                         // Aggiungiamo il delegato alla mappa
                         handlerMap[requestType] = handlerDelegate;
+                    }
+                    // Aggiungiamo gli handler asincroni
+                    var asyncRequestHandlerTypes = services
+                        .Where(sd => sd.ServiceType.IsGenericType &&
+                                     sd.ServiceType.GetGenericTypeDefinition() == typeof(IAsyncRequestHandler<,>))
+                        .ToList();
+
+                    foreach (var descriptor in asyncRequestHandlerTypes)
+                    {
+                        var serviceType = descriptor.ServiceType;
+                        var requestType = serviceType.GenericTypeArguments[0];
+                        var responseType = serviceType.GenericTypeArguments[1];
+
+                        // Creiamo il tipo della factory
+                        var factoryType = typeof(AsyncRequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
+
+                        // Chiamiamo il metodo statico CreateHandler
+                        var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
+                        var handlerDelegate = (Func<IServiceProvider, object, CancellationToken, Task<object>>)createMethod.Invoke(null, null);
+
+                        // Aggiungiamo il delegato alla mappa
+                        asyncHandlerMap[requestType] = handlerDelegate;
                     }
 
                 }
@@ -169,7 +207,32 @@ namespace FastMediator.DependencyInjection
                     notificationMap[notificationType].Add(handlerAction);
                 }
 
-                return new Dispatcher(sp, handlerMap, notificationMap,options);
+                // Ottieni tutti i tipi di handler di notifiche asincrone registrati
+                var asyncNotificationHandlerTypes = services
+                    .Where(sd => sd.ServiceType.IsGenericType &&
+                                 sd.ServiceType.GetGenericTypeDefinition() == typeof(IAsyncNotificationHandler<>))
+                    .ToList();
+
+                // Per ogni tipo di handler di notifiche asincrone
+                foreach (var descriptor in asyncNotificationHandlerTypes)
+                {
+                    var notificationType = descriptor.ServiceType.GenericTypeArguments[0];
+
+                    // Creiamo il tipo della factory
+                    var factoryType = typeof(AsyncNotificationHandlerFactory<>).MakeGenericType(notificationType);
+
+                    // Chiamiamo il metodo statico CreateHandler
+                    var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
+                    var handlerFunc = (Func<IServiceProvider, object, CancellationToken, Task>)createMethod.Invoke(null, null);
+
+                    // Aggiungiamo la funzione alla mappa
+                    if (!asyncNotificationMap.ContainsKey(notificationType))
+                        asyncNotificationMap[notificationType] = new List<Func<IServiceProvider, object, CancellationToken, Task>>();
+
+                    asyncNotificationMap[notificationType].Add(handlerFunc);
+                }
+
+                return new Dispatcher(sp, handlerMap, notificationMap, asyncHandlerMap, asyncNotificationMap, options);
             });
 
             return services;

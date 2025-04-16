@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/FastMediator.svg)](https://www.nuget.org/packages/FastMediator)
 [![NuGet](https://img.shields.io/nuget/dt/FastMediator.svg)](https://www.nuget.org/packages/FastMediator)
-[![License](https://img.shields.io/github/license/yourusername/FastMediator.svg)](https://github.com/yourusername/FastMediator/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/DDT88/FastMediator.svg)](https://github.com/DDT88/FastMediator/blob/main/LICENSE)
 
 FastMediator è un'implementazione leggera e performante del pattern Mediator per .NET, ottimizzata per prestazioni e facilità d'uso. Progettata per applicazioni che necessitano di un elevato throughput con un overhead minimo, permette di disaccoppiare i componenti dell'applicazione implementando il CQRS (Command Query Responsibility Segregation) in modo semplice ed elegante.
 
