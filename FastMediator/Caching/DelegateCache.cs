@@ -18,11 +18,22 @@ namespace FastMediator.Caching
         // Cache per i delegati degli handler delle notifiche
         private readonly ConcurrentDictionary<Type, Action<IServiceProvider, object>> _notificationHandlerCache = new();
 
+        // Cache per i delegati degli handler asincroni delle richieste
+        private readonly ConcurrentDictionary<RequestCacheKey, Func<IServiceProvider, object, CancellationToken, Task<object>>> _asyncRequestHandlerCache = new();
+
+        // Cache per i delegati degli handler asincroni delle notifiche
+        private readonly ConcurrentDictionary<Type, Func<IServiceProvider, object, CancellationToken, Task>> _asyncNotificationHandlerCache = new();
+
+
         // Statistiche della cache per diagnostica
         private int _requestHits;
         private int _requestMisses;
         private int _notificationHits;
         private int _notificationMisses;
+        private int _asyncRequestHits;
+        private int _asyncRequestMisses;
+        private int _asyncNotificationHits;
+        private int _asyncNotificationMisses;
 
         // Singleton
         public static DelegateCache Instance => _instance.Value;
@@ -121,6 +132,72 @@ namespace FastMediator.Caching
             return handler;
         }
 
+
+        /// <summary>
+        /// Statistiche di utilizzo della cache degli handler asincroni delle richieste
+        /// </summary>
+        public (int Hits, int Misses) AsyncRequestStats => (_asyncRequestHits, _asyncRequestMisses);
+
+        /// <summary>
+        /// Statistiche di utilizzo della cache degli handler asincroni delle notifiche
+        /// </summary>
+        public (int Hits, int Misses) AsyncNotificationStats => (_asyncNotificationHits, _asyncNotificationMisses);
+
+        /// <summary>
+        /// Dimensione della cache degli handler asincroni delle richieste
+        /// </summary>
+        public int AsyncRequestHandlerCacheSize => _asyncRequestHandlerCache.Count;
+
+        /// <summary>
+        /// Dimensione della cache degli handler asincroni delle notifiche
+        /// </summary>
+        public int AsyncNotificationHandlerCacheSize => _asyncNotificationHandlerCache.Count;
+
+        /// <summary>
+        /// Ottiene un delegato esistente o ne crea uno nuovo per un handler asincrono di richieste
+        /// </summary>
+        public Func<IServiceProvider, object, CancellationToken, Task<object>> GetOrCreateAsyncRequestHandler<TRequest, TResponse>(
+            Func<Func<IServiceProvider, object, CancellationToken, Task<object>>> factory)
+            where TRequest : IAsyncRequest<TResponse>
+        {
+            var key = new RequestCacheKey(typeof(TRequest), typeof(TResponse));
+
+            if (_asyncRequestHandlerCache.TryGetValue(key, out var cachedHandler))
+            {
+                Interlocked.Increment(ref _asyncRequestHits);
+                return cachedHandler;
+            }
+
+            Interlocked.Increment(ref _asyncRequestMisses);
+            var handler = factory();
+            _asyncRequestHandlerCache[key] = handler;
+            return handler;
+        }
+
+        /// <summary>
+        /// Ottiene un delegato esistente o ne crea uno nuovo per un handler asincrono di notifiche
+        /// </summary>
+        public Func<IServiceProvider, object, CancellationToken, Task> GetOrCreateAsyncNotificationHandler<TNotification>(
+            Func<Func<IServiceProvider, object, CancellationToken, Task>> factory)
+            where TNotification : IAsyncNotification
+        {
+            var key = typeof(TNotification);
+
+            if (_asyncNotificationHandlerCache.TryGetValue(key, out var cachedHandler))
+            {
+                Interlocked.Increment(ref _asyncNotificationHits);
+                return cachedHandler;
+            }
+
+            Interlocked.Increment(ref _asyncNotificationMisses);
+            var handler = factory();
+            _asyncNotificationHandlerCache[key] = handler;
+            return handler;
+        }
+
+
+
+
         /// <summary>
         /// Svuota la cache e azzera le statistiche
         /// </summary>
@@ -132,6 +209,12 @@ namespace FastMediator.Caching
             _requestMisses = 0;
             _notificationHits = 0;
             _notificationMisses = 0;
+            _asyncRequestHandlerCache.Clear();
+            _asyncNotificationHandlerCache.Clear();
+            _asyncRequestHits = 0;
+            _asyncRequestMisses = 0;
+            _asyncNotificationHits = 0;
+            _asyncNotificationMisses = 0;
         }
     }
 }
