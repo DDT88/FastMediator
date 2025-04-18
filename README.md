@@ -4,57 +4,57 @@
 [![NuGet](https://img.shields.io/nuget/dt/FastMediator.svg?cacheSeconds=3600)](https://www.nuget.org/packages/FastMediator)
 [![License](https://img.shields.io/github/license/DDT88/FastMediator.svg)](https://github.com/DDT88/FastMediator/blob/main/LICENSE)
 
-FastMediator è un'implementazione leggera e performante del pattern Mediator per .NET, ottimizzata per prestazioni e facilità d'uso. Progettata per applicazioni che necessitano di un elevato throughput con un overhead minimo, permette di disaccoppiare i componenti dell'applicazione implementando il CQRS (Command Query Responsibility Segregation) in modo semplice ed elegante.
+FastMediator is a lightweight and high-performance implementation of the Mediator pattern for .NET, optimized for performance and ease of use. Designed for applications that require high throughput with minimal overhead, it allows decoupling application components by implementing CQRS (Command Query Responsibility Segregation) in a simple and elegant way.
 
-## Caratteristiche
+## Features
 
-- 🚀 **Alte prestazioni**: Utilizza espressioni compilate e caching dei delegati per ottenere prestazioni ottimali
-- 🧩 **Supporto CQRS**: Separazione netta tra comandi (richieste che modificano lo stato) e query (richieste che restituiscono dati)
-- 🔄 **Pipeline di comportamenti**: Possibilità di intercettare richieste con comportamenti configurabili come validazione, logging e misurazione delle prestazioni
-- 📢 **Sistema di notifiche**: Supporto per il pattern publish/subscribe con notifiche a più handler
-- 🔍 **Diagnostica integrata**: Funzionalità di logging dettagliato e misurazione delle prestazioni per semplificare il debug e l'ottimizzazione
-- ✅ **Validazione integrata**: Validazione delle richieste in ingresso prima dell'elaborazione
-- 🧰 **Configurazione semplice**: Integrazione perfetta con Microsoft.Extensions.DependencyInjection
-- 🔄 **Supporto asincrono completo**: API e pipeline completamente asincrone con supporto per CancellationToken
-- ⚡ **Modalità di registrazione flessibili**: Startup, LazyLoading o Hybrid per ottimizzare performance e consumo di risorse
-- 🔄 **Interoperabilità sincrona/asincrona**: Conversione fluida tra richieste sincrone e asincrone
+- 🚀 **High Performance**: Uses compiled expressions and delegate caching for optimal performance
+- 🧩 **CQRS Support**: Clear separation between commands (requests that modify state) and queries (requests that return data)
+- 🔄 **Behavior Pipeline**: Ability to intercept requests with configurable behaviors such as validation, logging, and performance measurement
+- 📢 **Notification System**: Support for the publish/subscribe pattern with notifications to multiple handlers
+- 🔍 **Integrated Diagnostics**: Detailed logging functionality and performance measurement to simplify debugging and optimization
+- ✅ **Integrated Validation**: Validation of incoming requests before processing
+- 🧰 **Simple Configuration**: Seamless integration with Microsoft.Extensions.DependencyInjection
+- 🔄 **Full Asynchronous Support**: Fully asynchronous API and pipeline with CancellationToken support
+- ⚡ **Flexible Registration Modes**: Startup, LazyLoading, or Hybrid to optimize performance and resource consumption
+- 🔄 **Synchronous/Asynchronous Interoperability**: Smooth conversion between synchronous and asynchronous requests
 
-## Installazione
+## Installation
 
 ```bash
 dotnet add package FastMediator
 ```
 
-## Configurazione
+## Configuration
 
-Configura FastMediator nel tuo container IoC con diverse modalità di registrazione:
+Configure FastMediator in your IoC container with different registration modes:
 
 ```csharp
 services.AddCustomMediator(scan => scan.FromAssemblyOf<Program>(), options =>
 {
-    // Abilita comportamenti opzionali
-    options.EnableDiagnostics = true;    // Abilita behavior diagnostici
-    options.EnableTiming = true;         // Abilita misurazione tempi
-    options.EnableDetailedLogging = true; // Abilita logging dettagliato
-    options.LoggerFactory = loggerFactory; // Facoltativo: factory per i logger
+    // Enable optional behaviors
+    options.EnableDiagnostics = true;    // Enable diagnostic behaviors
+    options.EnableTiming = true;         // Enable timing measurement
+    options.EnableDetailedLogging = true; // Enable detailed logging
+    options.LoggerFactory = loggerFactory; // Optional: factory for loggers
     
-    // Scegli la modalità di registrazione degli handler
-    options.RegistrationMode = HandlerRegistrationMode.Startup; // Tutti all'avvio (default)
-    // OPPURE
-    options.RegistrationMode = HandlerRegistrationMode.LazyLoading; // Al primo utilizzo
-    // OPPURE
-    options.UseHybridMode()               // Modalità ibrida con API fluent
-           .WithWarmup<PingRequest>()     // Precarica handler specifici
-           .WithWarmup<AnotherRequest>(); // Aggiungi altri tipi da precaricare
+    // Choose handler registration mode
+    options.RegistrationMode = HandlerRegistrationMode.Startup; // All at startup (default)
+    // OR
+    options.RegistrationMode = HandlerRegistrationMode.LazyLoading; // On first use
+    // OR
+    options.UseHybridMode()               // Hybrid mode with fluent API
+           .WithWarmup<PingRequest>()     // Preload specific handlers
+           .WithWarmup<AnotherRequest>(); // Add more types to preload
 });
 ```
 
-## Utilizzo Base
+## Basic Usage
 
-### 1. Definisci una Richiesta e il suo Handler
+### 1. Define a Request and its Handler
 
 ```csharp
-// Richiesta sincrona
+// Synchronous request
 public class Ping : IRequest<string>
 {
     public string Message { get; }
@@ -65,16 +65,16 @@ public class Ping : IRequest<string>
     }
 }
 
-// Handler sincrono
+// Synchronous handler
 public class PingHandler : IRequestHandler<Ping, string>
 {
     public string Handle(Ping request)
     {
-        return $"Risposta a: {request.Message}";
+        return $"Response to: {request.Message}";
     }
 }
 
-// Richiesta asincrona
+// Asynchronous request
 public class AsyncPing : IAsyncRequest<string>
 {
     public string Message { get; }
@@ -85,21 +85,21 @@ public class AsyncPing : IAsyncRequest<string>
     }
 }
 
-// Handler asincrono
+// Asynchronous handler
 public class AsyncPingHandler : IAsyncRequestHandler<AsyncPing, string>
 {
     public async Task<string> HandleAsync(AsyncPing request, CancellationToken cancellationToken = default)
     {
         await Task.Delay(100, cancellationToken);
-        return $"Risposta asincrona a: {request.Message}";
+        return $"Asynchronous response to: {request.Message}";
     }
 }
 ```
 
-### 2. Invia la Richiesta
+### 2. Send the Request
 
 ```csharp
-// Inietta il dispatcher
+// Inject the dispatcher
 public class MyService
 {
     private readonly Dispatcher _mediator;
@@ -109,28 +109,28 @@ public class MyService
         _mediator = mediator;
     }
     
-    // Invio sincrono
+    // Synchronous sending
     public void ProcessMessage(string message)
     {
         string response = _mediator.Send(new Ping(message));
         Console.WriteLine(response);
     }
     
-    // Invio asincrono
+    // Asynchronous sending
     public async Task ProcessMessageAsync(string message, CancellationToken cancellationToken = default)
     {
         string response = await _mediator.SendAsync(new AsyncPing(message), cancellationToken);
         Console.WriteLine(response);
     }
     
-    // Invio sincrono usando API asincrona
+    // Synchronous sending using asynchronous API
     public async Task ProcessSyncMessageAsAsync(string message)
     {
         string response = await _mediator.SendAsAsync<Ping, string>(new Ping(message));
         Console.WriteLine(response);
     }
     
-    // Invio asincrono usando API sincrona
+    // Asynchronous sending using synchronous API
     public void ProcessAsyncMessageSync(string message)
     {
         string response = _mediator.SendSync<AsyncPing, string>(new AsyncPing(message));
@@ -139,128 +139,128 @@ public class MyService
 }
 ```
 
-## Notifiche
+## Notifications
 
-Le notifiche permettono la pubblicazione di eventi a più handler (sincrone e asincrone).
+Notifications allow publishing events to multiple handlers (synchronous and asynchronous).
 
-### 1. Definisci una Notifica e i suoi Handler
+### 1. Define a Notification and its Handlers
 
 ```csharp
-// Notifica sincrona
+// Synchronous notification
 public class SomethingHappened : INotification
 {
     public string Message { get; set; }
 }
 
-// Handler sincrono
+// Synchronous handler
 public class SomethingHappenedHandler : INotificationHandler<SomethingHappened>
 {
     public void Handle(SomethingHappened notification)
     {
-        Console.WriteLine($"Evento gestito: {notification.Message}");
+        Console.WriteLine($"Event handled: {notification.Message}");
     }
 }
 
-// Notifica asincrona
+// Asynchronous notification
 public class AsyncSomethingHappened : IAsyncNotification
 {
     public string Message { get; set; }
 }
 
-// Handler asincrono
+// Asynchronous handler
 public class AsyncSomethingHappenedHandler : IAsyncNotificationHandler<AsyncSomethingHappened>
 {
     public async Task HandleAsync(AsyncSomethingHappened notification, CancellationToken cancellationToken = default)
     {
         await Task.Delay(100, cancellationToken);
-        Console.WriteLine($"Evento asincrono gestito: {notification.Message}");
+        Console.WriteLine($"Asynchronous event handled: {notification.Message}");
     }
 }
 ```
 
-### 2. Pubblica la Notifica
+### 2. Publish the Notification
 
 ```csharp
-// Pubblicazione sincrona
-_mediator.Publish(new SomethingHappened { Message = "Un evento importante è accaduto!" });
+// Synchronous publishing
+_mediator.Publish(new SomethingHappened { Message = "An important event has occurred!" });
 
-// Pubblicazione asincrona (esegue tutti gli handler in parallelo)
-await _mediator.PublishAsync(new AsyncSomethingHappened { Message = "Un evento asincrono è accaduto!" });
+// Asynchronous publishing (executes all handlers in parallel)
+await _mediator.PublishAsync(new AsyncSomethingHappened { Message = "An asynchronous event has occurred!" });
 
-// Pubblicazione asincrona sequenziale (un handler alla volta)
-await _mediator.PublishSequentialAsync(new AsyncSomethingHappened { Message = "Un evento sequenziale è accaduto!" });
+// Sequential asynchronous publishing (one handler at a time)
+await _mediator.PublishSequentialAsync(new AsyncSomethingHappened { Message = "A sequential event has occurred!" });
 ```
 
-## Pipeline di Behaviors
+## Behavior Pipeline
 
-I behaviors permettono di intercettare e manipolare le richieste prima che raggiungano l'handler.
+Behaviors allow intercepting and manipulating requests before they reach the handler.
 
-### Behavior Inclusi
+### Included Behaviors
 
-FastMediator include diversi behaviors pronti all'uso per richieste sincrone e asincrone:
+FastMediator includes several ready-to-use behaviors for synchronous and asynchronous requests:
 
-- `ValidationBehavior`/`ValidationBehaviorAsync`: Valida le richieste prima dell'elaborazione
-- `LoggingBehavior`/`LoggingBehaviorAsync`: Registra dettagli delle richieste e delle risposte
-- `TimingBehavior`/`TimingBehaviorAsync`: Misura il tempo di elaborazione delle richieste
-- `DiagnosticBehavior`/`DiagnosticBehaviorAsync`: Fornisce informazioni sulla pipeline di behaviors
+- `ValidationBehavior`/`ValidationBehaviorAsync`: Validates requests before processing
+- `LoggingBehavior`/`LoggingBehaviorAsync`: Logs details of requests and responses
+- `TimingBehavior`/`TimingBehaviorAsync`: Measures the processing time of requests
+- `DiagnosticBehavior`/`DiagnosticBehaviorAsync`: Provides information about the behavior pipeline
 
-### Creazione di un Behavior Personalizzato
+### Creating a Custom Behavior
 
 ```csharp
-// Behavior sincrono
+// Synchronous behavior
 public class MyCustomBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
 {
-    // Priorità di esecuzione (più basso = più alta priorità)
+    // Execution priority (lower = higher priority)
     public int Order => 100;
     
     public TResponse Handle(TRequest request, Func<TRequest, TResponse> next)
     {
-        // Logica pre-elaborazione
-        Console.WriteLine($"Pre-elaborazione per {typeof(TRequest).Name}");
+        // Pre-processing logic
+        Console.WriteLine($"Pre-processing for {typeof(TRequest).Name}");
         
-        // Chiama il prossimo handler nella pipeline
+        // Call the next handler in the pipeline
         var response = next(request);
         
-        // Logica post-elaborazione
-        Console.WriteLine($"Post-elaborazione per {typeof(TRequest).Name}");
+        // Post-processing logic
+        Console.WriteLine($"Post-processing for {typeof(TRequest).Name}");
         
         return response;
     }
 }
 
-// Behavior asincrono
+// Asynchronous behavior
 public class MyCustomAsyncBehavior<TRequest, TResponse> : IPipelineBehaviorAsync<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IAsyncRequest<TResponse>
 {
-    // Priorità di esecuzione (più basso = più alta priorità)
+    // Execution priority (lower = higher priority)
     public int Order => 100;
     
     public async Task<TResponse> HandleAsync(TRequest request, Func<TRequest, CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
     {
-        // Logica pre-elaborazione
-        Console.WriteLine($"Pre-elaborazione asincrona per {typeof(TRequest).Name}");
+        // Pre-processing logic
+        Console.WriteLine($"Asynchronous pre-processing for {typeof(TRequest).Name}");
         
-        // Chiama il prossimo handler nella pipeline
+        // Call the next handler in the pipeline
         var response = await next(request, cancellationToken);
         
-        // Logica post-elaborazione
-        Console.WriteLine($"Post-elaborazione asincrona per {typeof(TRequest).Name}");
+        // Post-processing logic
+        Console.WriteLine($"Asynchronous post-processing for {typeof(TRequest).Name}");
         
         return response;
     }
 }
 
-// Registrazione nel container
+// Registration in the container
 services.AddTransient(typeof(IPipelineBehavior<,>), typeof(MyCustomBehavior<,>));
 services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(MyCustomAsyncBehavior<,>));
 ```
 
-## Validazione
+## Validation
 
-FastMediator include un sistema di validazione integrato, sia per richieste sincrone che asincrone.
+FastMediator includes an integrated validation system, for both synchronous and asynchronous requests.
 
-### 1. Crea un Validatore
+### 1. Create a Validator
 
 ```csharp
 public class CreateUserValidator : AbstractValidator<CreateUserCommand>
@@ -268,84 +268,84 @@ public class CreateUserValidator : AbstractValidator<CreateUserCommand>
     protected override void ValidateInternal(CreateUserCommand request, ValidationResult result)
     {
         if (string.IsNullOrEmpty(request.Username))
-            result.AddError(nameof(request.Username), "Username è obbligatorio");
+            result.AddError(nameof(request.Username), "Username is required");
             
         if (request.Password?.Length < 8)
-            result.AddError(nameof(request.Password), "La password deve contenere almeno 8 caratteri");
+            result.AddError(nameof(request.Password), "Password must be at least 8 characters");
     }
 }
 ```
 
-### 2. Registralo nel Container IoC
+### 2. Register it in the IoC Container
 
-Il validatore viene registrato automaticamente se utilizzi il metodo di scansione dell'assembly.
+The validator is automatically registered if you use the assembly scanning method.
 
-## Modalità di Registrazione
+## Registration Modes
 
-FastMediator supporta diverse modalità di registrazione degli handler per ottimizzare prestazioni e utilizzo di risorse:
+FastMediator supports different handler registration modes to optimize performance and resource usage:
 
 ```csharp
-// 1. Modalità Startup (default) - Tutti gli handler vengono registrati all'avvio
+// 1. Startup Mode (default) - All handlers are registered at startup
 options.RegistrationMode = HandlerRegistrationMode.Startup;
 
-// 2. Modalità LazyLoading - Gli handler vengono registrati al primo utilizzo
+// 2. LazyLoading Mode - Handlers are registered on first use
 options.RegistrationMode = HandlerRegistrationMode.LazyLoading;
 
-// 3. Modalità Hybrid - Precarica solo gli handler specificati, gli altri al primo utilizzo
+// 3. Hybrid Mode - Preloads only specified handlers, others on first use
 options.UseHybridMode()
        .WithWarmup<PingRequest>()
        .WithWarmup<AnotherRequest>();
 ```
 
-## DelegateCache e Prestazioni
+## DelegateCache and Performance
 
-FastMediator utilizza un sistema di cache dei delegati per massimizzare le prestazioni:
+FastMediator uses a delegate caching system to maximize performance:
 
 ```csharp
-// Ottieni statistiche sulla cache
+// Get cache statistics
 var stats = mediator.GetRequestHandlerCacheStats();
 Console.WriteLine($"Cache hits: {stats.Hits}, misses: {stats.Misses}");
 
-// Dimensione della cache
+// Cache size
 Console.WriteLine($"Cache request handlers: {mediator.RequestHandlerCacheSize}");
 Console.WriteLine($"Cache notification handlers: {mediator.NotificationHandlerCacheSize}");
 Console.WriteLine($"Cache async request handlers: {mediator.AsyncRequestHandlerCacheSize}");
 Console.WriteLine($"Cache async notification handlers: {mediator.AsyncNotificationHandlerCacheSize}");
 ```
 
-## Interoperabilità Sincrona/Asincrona
+## Synchronous/Asynchronous Interoperability
 
-FastMediator offre metodi di estensione per convertire chiamate sincrone in asincrone e viceversa:
+FastMediator offers extension methods to convert synchronous calls to asynchronous and vice versa:
 
 ```csharp
-// Da sincrono ad asincrono
+// From synchronous to asynchronous
 await mediator.SendAsAsync<PingRequest, string>(new PingRequest("Test"));
 await mediator.PublishAsAsync(new SomethingHappened { Message = "Test" });
 
-// Da asincrono a sincrono
+// From asynchronous to synchronous
 string result = mediator.SendSync<AsyncPingRequest, string>(new AsyncPingRequest("Test"));
 mediator.PublishSync(new AsyncSomethingHappened { Message = "Test" });
 ```
 
-## Scenari Avanzati
+## Advanced Scenarios
 
-### CQRS con Differenti Tipi di Richieste
+### CQRS with Different Request Types
 
 ```csharp
-// Query sincrona (restituzione dati senza modifiche di stato)
+// Synchronous query (returns data without state modification)
 public class GetUserQuery : IRequest<UserDto> { public int UserId { get; set; } }
 
-// Command sincrono (modifica lo stato)
+// Synchronous command (modifies state)
 public class CreateUserCommand : IRequest<int> 
 { 
     public string Username { get; set; }
     public string Email { get; set; }
 }
 
-// Query asincrona
+// Asynchronous query
 public class GetUserAsyncQuery : IAsyncRequest<UserDto> { public int UserId { get; set; } }
 
-// Command asincrono
+// Asynchronous command
 public class CreateUserAsyncCommand : IAsyncRequest<int>
 {
     public string Username { get; set; }
@@ -353,7 +353,7 @@ public class CreateUserAsyncCommand : IAsyncRequest<int>
 }
 ```
 
-### Gestione delle Eccezioni con Behaviors
+### Exception Handling with Behaviors
 
 ```csharp
 public class ErrorHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
@@ -374,8 +374,8 @@ public class ErrorHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<TReq
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Errore durante l'elaborazione di {typeof(TRequest).Name}");
-            throw; // O gestisci l'eccezione in modo appropriato
+            _logger.LogError(ex, $"Error during processing of {typeof(TRequest).Name}");
+            throw; // Or handle the exception appropriately
         }
     }
 }
@@ -383,21 +383,21 @@ public class ErrorHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<TReq
 
 ## Best Practices
 
-1. **Tenere le richieste immutabili**: Definisci le proprietà come `readonly` o utilizza record C#
-2. **Usare tipi di ritorno appropriati**: Ritorna `void` o `Task` per comandi, dati specifici per query
-3. **Separare richieste e handler**: Mantieni ciascun handler in un file separato per migliorare l'organizzazione del codice
-4. **Utilizzare behavior per preoccupazioni trasversali**: Validazione, logging, caching, ecc.
-5. **Ordinare i behaviors correttamente**: Usa l'interfaccia `IOrderedPipelineBehavior` per controllare l'ordine di esecuzione
-6. **Scegliere la modalità di registrazione appropriata**:
-   - `Startup` per massime prestazioni in produzione
-   - `LazyLoading` per ridurre il tempo di avvio e l'utilizzo di memoria
-   - `Hybrid` per un compromesso ottimale
-7. **Preferire API asincrone** per operazioni I/O-bound o potenzialmente bloccanti
+1. **Keep requests immutable**: Define properties as `readonly` or use C# records
+2. **Use appropriate return types**: Return `void` or `Task` for commands, specific data for queries
+3. **Separate requests and handlers**: Keep each handler in a separate file to improve code organization
+4. **Use behaviors for cross-cutting concerns**: Validation, logging, caching, etc.
+5. **Order behaviors correctly**: Use the `IOrderedPipelineBehavior` interface to control execution order
+6. **Choose the appropriate registration mode**:
+   - `Startup` for maximum performance in production
+   - `LazyLoading` to reduce startup time and memory usage
+   - `Hybrid` for an optimal compromise
+7. **Prefer asynchronous APIs** for I/O-bound or potentially blocking operations
 
-## Contribuire
+## Contributing
 
-Le contribuzioni sono benvenute! Se desideri migliorare FastMediator, sentiti libero di inviare una pull request.
+Contributions are welcome! If you want to improve FastMediator, feel free to send a pull request.
 
-## Licenza
+## License
 
-FastMediator è distribuito sotto la licenza MIT. Vedi il file LICENSE per maggiori dettagli.
+FastMediator is distributed under the MIT license. See the LICENSE file for more details.
