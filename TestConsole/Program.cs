@@ -16,11 +16,9 @@ public class Program
     public static void Main(string[] args)
     {
         // Se vuoi solo eseguire il test base, decommenta questo
-       //RunBasicTest();
+       RunBasicTest();
 
-        // Esegui il benchmark completo
-        var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
-        Console.WriteLine("Benchmark completato!");
+
     }
 
     private static void RunBasicTest()
@@ -45,7 +43,7 @@ public class Program
         services.AddCustomMediator(scan => scan.FromAssemblyOf<Program>(),options =>
         {
             options.EnableDiagnostics = false;
-            options.EnableTiming = false;
+            options.EnableTiming = true;
             options.EnableDetailedLogging = false;
             options.LoggerFactory = loggerFactory; // Passa il LoggerFactory alla configurazione
             options.UseHybridMode().WithWarmup<PingRequest>();

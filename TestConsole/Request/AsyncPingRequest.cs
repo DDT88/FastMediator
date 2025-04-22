@@ -5,11 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TestConsole.Utils
+namespace TestConsole.Request
 {
-    public class AsyncPingRequest : IAsyncRequest<string>
+    public record AsyncPingRequest : IAsyncRequest<string>
     {
-        public string Message { get; }
+        public string Message { get; set; }
 
         public AsyncPingRequest(string message)
         {

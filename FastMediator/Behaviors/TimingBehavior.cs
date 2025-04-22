@@ -34,12 +34,12 @@ namespace FastMediator.Behaviors
         public TResponse Handle(TRequest request, Func<TRequest, TResponse> next)
         {
             var stopwatch = Stopwatch.StartNew();
-            _logger.LogInformation($"[Timing] Iniziando elaborazione {typeof(TRequest).Name}");
+            _logger.LogDebug($"[Timing] Iniziando elaborazione {typeof(TRequest).Name}");
 
             var response = next(request);
 
             stopwatch.Stop();
-            _logger.LogInformation($"[Timing] Completata elaborazione {typeof(TRequest).Name} in {stopwatch.ElapsedMilliseconds}ms");
+            _logger.LogDebug($"[Timing] Completata elaborazione {typeof(TRequest).Name} in {stopwatch.ElapsedMilliseconds}ms");
 
             return response;
         }

@@ -5,10 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TestConsole.Utils
+namespace TestConsole.Request
 {
-    public class AsyncSomethingHappened : IAsyncNotification
+    public class AnotherEvent : INotification
     {
-        public string Message { get; set; } = "";
+        public int Id { get; set; }
     }
 }

@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TestConsole
+namespace TestConsole.Validator
 {
     public class CreateUserValidator : AbstractValidator<PingRequest>
     {

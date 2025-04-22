@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TestConsole.Request;
 
-namespace TestConsole.Utils
+namespace TestConsole.Handler
 {
     public class AsyncPingHandler : IAsyncRequestHandler<AsyncPingRequest, string>
     {

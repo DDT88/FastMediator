@@ -8,7 +8,7 @@
 	  
 	  <!-- Metadati del pacchetto NuGet -->
 	  <PackageId>FastMediator</PackageId>
-	  <Version>0.0.7</Version>
+	  <Version>1.0.0</Version>
 	  <Authors>Daniele Del Toso</Authors>
 	  <Description>Un'implementazione leggera e performante del pattern Mediator per .NET, ottimizzata per prestazioni e facilità d'uso.</Description>
 	  <PackageTags>mediator;cqrs;dotnet;performance</PackageTags>

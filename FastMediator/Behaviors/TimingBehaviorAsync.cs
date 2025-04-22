@@ -31,12 +31,12 @@ namespace FastMediator.Behaviors
         public async Task<TResponse> HandleAsync(TRequest request, Func<TRequest, CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
-            _logger.LogInformation($"[Timing] Iniziando elaborazione asincrona {typeof(TRequest).Name}");
+            _logger.LogDebug($"[Timing] Iniziando elaborazione asincrona {typeof(TRequest).Name}");
 
             var response = await next(request, cancellationToken);
 
             stopwatch.Stop();
-            _logger.LogInformation($"[Timing] Completata elaborazione asincrona {typeof(TRequest).Name} in {stopwatch.ElapsedMilliseconds}ms");
+            _logger.LogDebug($"[Timing] Completata elaborazione asincrona {typeof(TRequest).Name} in {stopwatch.ElapsedMilliseconds}ms");
 
             return response;
         }
