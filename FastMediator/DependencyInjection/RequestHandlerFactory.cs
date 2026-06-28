@@ -40,7 +40,7 @@ namespace FastMediator.DependencyInjection
                                      Behavior = b,
                                      Order = (b as IOrderedPipelineBehavior)?.Order ?? int.MaxValue
                                  })
-                                 .OrderBy(x => x.Order)
+                                 .OrderByDescending(x => x.Order)
                                  .Select(x => x.Behavior);
 
                         // Costruisci la pipeline in ordine inverso

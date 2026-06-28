@@ -117,11 +117,18 @@ namespace FastMediator.DependencyInjection
                    .WithTransientLifetime()
                    .AddClasses(classes => classes.AssignableTo(typeof(IPipelineBehaviorAsync<,>)))
                    .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   .AddClasses(classes => classes.AssignableTo(typeof(IStreamRequestHandler<,>)))
+                   .AsImplementedInterfaces()
+                   .WithTransientLifetime()
+                   .AddClasses(classes => classes.AssignableTo(typeof(IStreamPipelineBehavior<,>)))
+                   .AsImplementedInterfaces()
                    .WithTransientLifetime();
             });
 
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(ValidationBehaviorAsync<,>));
+            services.AddTransient(typeof(IStreamPipelineBehavior<,>), typeof(StreamValidationBehavior<,>));
 
             services.AddSingleton<Dispatcher>(sp =>
             {
@@ -129,6 +136,7 @@ namespace FastMediator.DependencyInjection
                 var notificationMap = new Dictionary<Type, List<Action<IServiceProvider, object>>>();
                 var asyncHandlerMap = new Dictionary<Type, Func<IServiceProvider, object, CancellationToken, Task<object>>>();
                 var asyncNotificationMap = new Dictionary<Type, List<Func<IServiceProvider, object, CancellationToken, Task>>>();
+                var streamHandlerMap = new Dictionary<Type, Func<IServiceProvider, object, CancellationToken, object>>();
 
                 if (options.RegistrationMode == HandlerRegistrationMode.Startup ||
                     options.RegistrationMode == HandlerRegistrationMode.Hybrid)
@@ -180,6 +188,28 @@ namespace FastMediator.DependencyInjection
                         asyncHandlerMap[requestType] = handlerDelegate;
                     }
 
+                    // Aggiungiamo gli stream handler
+                    var streamRequestHandlerTypes = services
+                        .Where(sd => sd.ServiceType.IsGenericType &&
+                                     sd.ServiceType.GetGenericTypeDefinition() == typeof(IStreamRequestHandler<,>))
+                        .ToList();
+
+                    foreach (var descriptor in streamRequestHandlerTypes)
+                    {
+                        var serviceType = descriptor.ServiceType;
+                        var requestType = serviceType.GenericTypeArguments[0];
+                        var responseType = serviceType.GenericTypeArguments[1];
+
+                        // Creiamo il tipo della factory
+                        var factoryType = typeof(StreamRequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
+
+                        // Chiamiamo il metodo statico CreateHandler
+                        var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
+                        var handlerDelegate = (Func<IServiceProvider, object, CancellationToken, object>)createMethod.Invoke(null, null);
+
+                        // Aggiungiamo il delegato alla mappa
+                        streamHandlerMap[requestType] = handlerDelegate;
+                    }
                 }
 
                 // Ottieni tutti i tipi di handler di notifiche registrati
@@ -232,7 +262,7 @@ namespace FastMediator.DependencyInjection
                     asyncNotificationMap[notificationType].Add(handlerFunc);
                 }
 
-                return new Dispatcher(sp, handlerMap, notificationMap, asyncHandlerMap, asyncNotificationMap, options);
+                return new Dispatcher(sp, handlerMap, notificationMap, asyncHandlerMap, asyncNotificationMap, streamHandlerMap, options);
             });
 
             return services;

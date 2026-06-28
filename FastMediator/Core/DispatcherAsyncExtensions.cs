@@ -36,5 +36,14 @@ namespace FastMediator.Core
         {
             return dispatcher.PublishAsyncSequential(notification, cancellationToken);
         }
+
+        /// <summary>
+        /// Crea uno stream da una richiesta asincrona
+        /// </summary>
+        public static System.Collections.Generic.IAsyncEnumerable<TResponse> CreateStream<TRequest, TResponse>(this Dispatcher dispatcher, TRequest request, CancellationToken cancellationToken = default)
+            where TRequest : IStreamRequest<TResponse>
+        {
+            return dispatcher.CreateStream<TResponse>(request, cancellationToken);
+        }
     }
 }

@@ -24,6 +24,8 @@ namespace FastMediator.Caching
         // Cache per i delegati degli handler asincroni delle notifiche
         private readonly ConcurrentDictionary<Type, Func<IServiceProvider, object, CancellationToken, Task>> _asyncNotificationHandlerCache = new();
 
+        // Cache per i delegati degli stream handler
+        private readonly ConcurrentDictionary<RequestCacheKey, Func<IServiceProvider, object, CancellationToken, object>> _streamRequestHandlerCache = new();
 
         // Statistiche della cache per diagnostica
         private int _requestHits;
@@ -34,6 +36,8 @@ namespace FastMediator.Caching
         private int _asyncRequestMisses;
         private int _asyncNotificationHits;
         private int _asyncNotificationMisses;
+        private int _streamRequestHits;
+        private int _streamRequestMisses;
 
         // Singleton
         public static DelegateCache Instance => _instance.Value;
@@ -195,8 +199,36 @@ namespace FastMediator.Caching
             return handler;
         }
 
+        /// <summary>
+        /// Statistiche di utilizzo della cache degli stream handler
+        /// </summary>
+        public (int Hits, int Misses) StreamRequestStats => (_streamRequestHits, _streamRequestMisses);
 
+        /// <summary>
+        /// Dimensione della cache degli stream handler
+        /// </summary>
+        public int StreamRequestHandlerCacheSize => _streamRequestHandlerCache.Count;
 
+        /// <summary>
+        /// Ottiene un delegato esistente o ne crea uno nuovo per uno stream handler
+        /// </summary>
+        public Func<IServiceProvider, object, CancellationToken, object> GetOrCreateStreamRequestHandler<TRequest, TResponse>(
+            Func<Func<IServiceProvider, object, CancellationToken, object>> factory)
+            where TRequest : IStreamRequest<TResponse>
+        {
+            var key = new RequestCacheKey(typeof(TRequest), typeof(TResponse));
+
+            if (_streamRequestHandlerCache.TryGetValue(key, out var cachedHandler))
+            {
+                Interlocked.Increment(ref _streamRequestHits);
+                return cachedHandler;
+            }
+
+            Interlocked.Increment(ref _streamRequestMisses);
+            var handler = factory();
+            _streamRequestHandlerCache[key] = handler;
+            return handler;
+        }
 
         /// <summary>
         /// Svuota la cache e azzera le statistiche
@@ -215,6 +247,9 @@ namespace FastMediator.Caching
             _asyncRequestMisses = 0;
             _asyncNotificationHits = 0;
             _asyncNotificationMisses = 0;
+            _streamRequestHandlerCache.Clear();
+            _streamRequestHits = 0;
+            _streamRequestMisses = 0;
         }
     }
 }

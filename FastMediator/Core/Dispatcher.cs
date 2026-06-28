@@ -27,6 +27,9 @@ namespace FastMediator.Core
         private readonly Dictionary<Type, List<Func<IServiceProvider, object, CancellationToken, Task>>> _asyncNotificationHandlers = new();
         private readonly ConcurrentDictionary<Type, object> _asyncHandlerFactories;
 
+        private readonly Dictionary<Type, Func<IServiceProvider, object, CancellationToken, object>> _streamHandlers = new();
+        private readonly ConcurrentDictionary<Type, object> _streamHandlerFactories;
+
         /// <summary>
         /// Crea una nuova istanza del dispatcher
         /// </summary>
@@ -35,10 +38,12 @@ namespace FastMediator.Core
                            Dictionary<Type, List<Action<IServiceProvider, object>>> notificationHandlers,
                            Dictionary<Type, Func<IServiceProvider, object, CancellationToken, Task<object>>> asyncHandlers,
                            Dictionary<Type, List<Func<IServiceProvider, object, CancellationToken, Task>>> asyncNotificationHandlers,
+                           Dictionary<Type, Func<IServiceProvider, object, CancellationToken, object>> streamHandlers,
                            FastMediatorOptions options) 
         {
             _asyncHandlers = asyncHandlers;
             _asyncNotificationHandlers = asyncNotificationHandlers;
+            _streamHandlers = streamHandlers ?? new Dictionary<Type, Func<IServiceProvider, object, CancellationToken, object>>();
 
             _provider = provider;
             _handlers = handlers;
@@ -50,6 +55,7 @@ namespace FastMediator.Core
             {
                 _handlerFactories = new ConcurrentDictionary<Type, object>();
                 _asyncHandlerFactories = new ConcurrentDictionary<Type, object>();
+                _streamHandlerFactories = new ConcurrentDictionary<Type, object>();
             }
         }
 
@@ -173,6 +179,47 @@ namespace FastMediator.Core
             }
         }
 
+        /// <summary>
+        /// Crea uno stream di risposte da una richiesta stream
+        /// </summary>
+        /// <typeparam name="TResponse">Il tipo di risposta atteso nello stream</typeparam>
+        /// <param name="request">La richiesta stream da inviare</param>
+        /// <param name="cancellationToken">Token per la cancellazione dell'operazione</param>
+        /// <returns>Uno stream IAsyncEnumerable di risposte</returns>
+        public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)
+        {
+            var type = request.GetType();
+
+            // Approccio standard
+            if (_options.RegistrationMode == HandlerRegistrationMode.Startup || _streamHandlers.ContainsKey(type))
+            {
+                if (!_streamHandlers.TryGetValue(type, out var handlerStd))
+                    throw new InvalidOperationException($"Stream handler not found for request type {type.Name}");
+
+                return (IAsyncEnumerable<TResponse>)handlerStd(_provider, request, cancellationToken);
+            }
+
+            // Approccio dinamico (lazy loading o ibrido per tipi non pre-registrati)
+            var responseType = typeof(TResponse);
+            var handler = GetOrCreateStreamHandler(type, responseType);
+            return (IAsyncEnumerable<TResponse>)handler(_provider, request, cancellationToken);
+        }
+
+        // Nuovo metodo per lazy loading degli stream handler
+        private Func<IServiceProvider, object, CancellationToken, object> GetOrCreateStreamHandler(Type requestType, Type responseType)
+        {
+            return _streamHandlerFactories.GetOrAdd(requestType, _ => {
+                // Crea il tipo della factory
+                var factoryType = typeof(StreamRequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
+
+                // Chiama il metodo statico CreateHandler
+                var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
+                var handlerDelegate = (Func<IServiceProvider, object, CancellationToken, object>)createMethod.Invoke(null, null);
+
+                return handlerDelegate;
+            }) as Func<IServiceProvider, object, CancellationToken, object>;
+        }
+
         // Nuovo metodo per lazy loading degli handler asincroni
         private Func<IServiceProvider, object, CancellationToken, Task<object>> GetOrCreateAsyncHandler(Type requestType, Type responseType)
         {
@@ -234,6 +281,15 @@ namespace FastMediator.Core
         /// </summary>
         public int AsyncNotificationHandlerCacheSize => DelegateCache.Instance.AsyncNotificationHandlerCacheSize;
 
+        /// <summary>
+        /// Ottiene le statistiche di utilizzo della cache degli stream handler
+        /// </summary>
+        public (int Hits, int Misses) GetStreamRequestHandlerCacheStats() => DelegateCache.Instance.StreamRequestStats;
+
+        /// <summary>
+        /// Ottiene la dimensione della cache degli stream handler
+        /// </summary>
+        public int StreamRequestHandlerCacheSize => DelegateCache.Instance.StreamRequestHandlerCacheSize;
 
     }
 }
