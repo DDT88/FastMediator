@@ -40,9 +40,13 @@ namespace FastMediator.DependencyInjection
         {
             foreach (var type in types)
             {
-                if (typeof(IRequest<>).IsAssignableFrom(type))
+                if (type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)))
                 {
                     options.WarmupTypes.Add(type);
+                }
+                else
+                {
+                    throw new ArgumentException($"Il tipo {type.Name} non implementa IRequest<>");
                 }
             }
             return options;

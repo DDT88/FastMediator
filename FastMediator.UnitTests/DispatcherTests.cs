@@ -16,7 +16,7 @@ namespace FastMediator.UnitTests
         {
             // Arrange
             var services = new ServiceCollection();
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<DispatcherTests>());
+            services.AddFastMediator(scan => scan.FromAssemblyOf<DispatcherTests>());
             var provider = services.BuildServiceProvider();
             var dispatcher = provider.GetRequiredService<Dispatcher>();
             var request = new TestRequest("Hello World");
@@ -33,7 +33,7 @@ namespace FastMediator.UnitTests
         {
             // Arrange
             var services = new ServiceCollection();
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<DispatcherTests>());
+            services.AddFastMediator(scan => scan.FromAssemblyOf<DispatcherTests>());
             var provider = services.BuildServiceProvider();
             var dispatcher = provider.GetRequiredService<Dispatcher>();
             var request = new TestAsyncRequest("Hello Async World");
@@ -52,7 +52,7 @@ namespace FastMediator.UnitTests
             NotificationCounter.Reset();
 
             var services = new ServiceCollection();
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<DispatcherTests>());
+            services.AddFastMediator(scan => scan.FromAssemblyOf<DispatcherTests>());
             var provider = services.BuildServiceProvider();
             var dispatcher = provider.GetRequiredService<Dispatcher>();
             var notification = new TestNotification("Test Event");
@@ -145,3 +145,4 @@ namespace FastMediator.UnitTests
         }
     }
 }
+

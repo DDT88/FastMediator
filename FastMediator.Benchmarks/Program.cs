@@ -1,10 +1,8 @@
-﻿using BenchmarkDotNet.Running;
-using FastMediator.Benchmarks;
+using System.Reflection;
+using BenchmarkDotNet.Running;
 
-// Esegui i benchmark
-var summary = BenchmarkRunner.Run<MediatorBenchmarks>();
-Console.WriteLine("Benchmark completato!");
-
-// Esegui i benchmark avanzati
-var advancedSummary = BenchmarkRunner.Run<AdvancedMediatorBenchmarks>();
-Console.WriteLine("Benchmark avanzati completati!");
+// Esegui i benchmark selezionabili da riga di comando.
+// Esempi:
+//   dotnet run -c Release -- --filter *MediatRComparison*
+//   dotnet run -c Release -- --filter *
+BenchmarkSwitcher.FromAssembly(Assembly.GetExecutingAssembly()).Run(args);

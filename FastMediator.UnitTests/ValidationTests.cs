@@ -17,7 +17,7 @@ namespace FastMediator.UnitTests
         {
             // Arrange
             var services = new ServiceCollection();
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<ValidationTests>());
+            services.AddFastMediator(scan => scan.FromAssemblyOf<ValidationTests>());
             var provider = services.BuildServiceProvider();
             var dispatcher = provider.GetRequiredService<Dispatcher>();
             var request = new ValidatedRequest { Name = "" }; // Invalid: Name is required
@@ -31,7 +31,7 @@ namespace FastMediator.UnitTests
         {
             // Arrange
             var services = new ServiceCollection();
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<ValidationTests>());
+            services.AddFastMediator(scan => scan.FromAssemblyOf<ValidationTests>());
             var provider = services.BuildServiceProvider();
             var dispatcher = provider.GetRequiredService<Dispatcher>();
             var request = new ValidatedRequest { Name = "John", Age = 25 };
@@ -48,7 +48,7 @@ namespace FastMediator.UnitTests
         {
             // Arrange
             var services = new ServiceCollection();
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<ValidationTests>());
+            services.AddFastMediator(scan => scan.FromAssemblyOf<ValidationTests>());
             var provider = services.BuildServiceProvider();
             var dispatcher = provider.GetRequiredService<Dispatcher>();
             var request = new ValidatedRequest { Name = "", Age = -5 }; // Multiple validation errors

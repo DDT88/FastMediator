@@ -42,7 +42,7 @@ namespace FastMediator.Benchmarks
         {
             var services = new ServiceCollection();
 
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<MediatorBenchmarks>(), options =>
+            services.AddFastMediator(scan => scan.FromAssemblyOf<MediatorBenchmarks>(), options =>
             {
                 options.RegistrationMode = mode;
 
@@ -271,3 +271,4 @@ namespace FastMediator.Benchmarks
         #endregion
     }
 }
+

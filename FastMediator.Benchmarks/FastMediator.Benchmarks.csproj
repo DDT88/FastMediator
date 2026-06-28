@@ -10,6 +10,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+		<!-- MediatR 12.4.1 = ultima versione con licenza Apache-2.0 (v13+ è commerciale) -->
+		<PackageReference Include="MediatR" Version="12.4.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.4" />
 	</ItemGroup>

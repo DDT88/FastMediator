@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace FastMediator.Configuration
 {
@@ -17,16 +19,21 @@ namespace FastMediator.Configuration
         /// </summary>
         public bool EnableTiming { get; set; } = false;
 
-
         /// <summary>
         /// Indica se il logging dettagliato è abilitato
         /// </summary>
         public bool EnableDetailedLogging { get; set; } = false;
 
         /// <summary>
+        /// Indica se il behavior di validazione è abilitato (default true). Se disabilitato,
+        /// le richieste senza altri behavior seguono il percorso veloce (nessuna pipeline).
+        /// </summary>
+        public bool EnableValidation { get; set; } = true;
+
+        /// <summary>
         /// Factory per la creazione di logger
         /// </summary>
-        public ILoggerFactory LoggerFactory { get; set; }
+        public ILoggerFactory? LoggerFactory { get; set; }
 
         /// <summary>
         /// Modalità di registrazione degli handler

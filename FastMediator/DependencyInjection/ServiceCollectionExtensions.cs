@@ -1,11 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using FastMediator.Behaviors;
 using FastMediator.Configuration;
 using FastMediator.Core;
-using FastMediator.DependencyInjection;
 using FastMediator.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,29 +15,27 @@ using Scrutor;
 namespace FastMediator.DependencyInjection
 {
     /// <summary>
-    /// Estensioni per IServiceCollection
+    /// Estensioni per IServiceCollection per registrare FastMediator.
     /// </summary>
     public static class ServiceCollectionExtensions
     {
         /// <summary>
-        /// Aggiunge il mediator personalizzato con tutti gli handler registrati tramite scan
+        /// Aggiunge FastMediator con scansione di tutte le dipendenze dell'applicazione.
         /// </summary>
-        public static IServiceCollection AddCustomMediator(this IServiceCollection services , Action<FastMediatorOptions> configureOptions = null)
+        public static IServiceCollection AddFastMediator(this IServiceCollection services, Action<FastMediatorOptions>? configureOptions = null)
         {
-            return AddCustomMediator(services, scan => scan.FromApplicationDependencies() ,configureOptions);
+            return AddFastMediator(services, scan => scan.FromApplicationDependencies(), configureOptions);
         }
 
-
-
         /// <summary>
-        /// Aggiunge il mediator personalizzato specificando esplicitamente un ILoggerFactory
+        /// Aggiunge FastMediator specificando esplicitamente un ILoggerFactory.
         /// </summary>
-        public static IServiceCollection AddCustomMediator(
+        public static IServiceCollection AddFastMediator(
             this IServiceCollection services,
             ILoggerFactory loggerFactory,
-            Action<FastMediatorOptions> configureOptions = null)
+            Action<FastMediatorOptions>? configureOptions = null)
         {
-            return AddCustomMediator(services, scan => scan.FromApplicationDependencies(), options =>
+            return AddFastMediator(services, scan => scan.FromApplicationDependencies(), options =>
             {
                 options.LoggerFactory = loggerFactory;
                 configureOptions?.Invoke(options);
@@ -44,36 +43,36 @@ namespace FastMediator.DependencyInjection
         }
 
         /// <summary>
-        /// Aggiunge il mediator personalizzato con configurazione personalizzata per lo scanner e un ILoggerFactory esplicito
+        /// Aggiunge FastMediator con scanner personalizzato e un ILoggerFactory esplicito.
         /// </summary>
-        public static IServiceCollection AddCustomMediator(
+        public static IServiceCollection AddFastMediator(
             this IServiceCollection services,
             Func<ITypeSourceSelector, IImplementationTypeSelector> configureScanner,
             ILoggerFactory loggerFactory,
-            Action<FastMediatorOptions> configureOptions = null)
+            Action<FastMediatorOptions>? configureOptions = null)
         {
-            return AddCustomMediator(services, configureScanner, options =>
+            return AddFastMediator(services, configureScanner, options =>
             {
                 options.LoggerFactory = loggerFactory;
                 configureOptions?.Invoke(options);
             });
         }
 
-
         /// <summary>
-        /// Aggiunge il mediator personalizzato con configurazione personalizzata per lo scanner
+        /// Aggiunge FastMediator con configurazione personalizzata dello scanner.
         /// </summary>
-        public static IServiceCollection AddCustomMediator(this IServiceCollection services, Func<ITypeSourceSelector, IImplementationTypeSelector> configureScanner
-            , Action<FastMediatorOptions> configureOptions = null)
+        public static IServiceCollection AddFastMediator(
+            this IServiceCollection services,
+            Func<ITypeSourceSelector, IImplementationTypeSelector> configureScanner,
+            Action<FastMediatorOptions>? configureOptions = null)
         {
-            // Configura le opzioni
             var options = new FastMediatorOptions();
             configureOptions?.Invoke(options);
 
-            // opzioni disponibili per l'injection
+            // Le opzioni sono disponibili per l'injection.
             services.AddSingleton(options);
 
-            // Registra i behavior diagnostici se abilitati
+            // Behavior opzionali abilitati tramite opzioni.
             if (options.EnableDiagnostics)
             {
                 services.AddTransient(typeof(IPipelineBehavior<,>), typeof(DiagnosticBehavior<,>));
@@ -92,9 +91,9 @@ namespace FastMediator.DependencyInjection
                 services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(LoggingBehaviorAsync<,>));
             }
 
+            // Scansione di handler, behaviors e validatori.
             services.Scan(scan =>
             {
-                // Il configureScanner ora restituisce un IImplementationTypeSelector che possiamo continuare a usare
                 configureScanner(scan)
                    .AddClasses(classes => classes.AssignableTo(typeof(IRequestHandler<,>)))
                    .AsImplementedInterfaces()
@@ -108,7 +107,6 @@ namespace FastMediator.DependencyInjection
                    .AddClasses(classes => classes.AssignableTo(typeof(IValidator<>)))
                    .AsImplementedInterfaces()
                    .WithTransientLifetime()
-                   // Aggiungiamo le registrazioni per gli handler asincroni
                    .AddClasses(classes => classes.AssignableTo(typeof(IAsyncRequestHandler<,>)))
                    .AsImplementedInterfaces()
                    .WithTransientLifetime()
@@ -120,122 +118,113 @@ namespace FastMediator.DependencyInjection
                    .WithTransientLifetime();
             });
 
-            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-            services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(ValidationBehaviorAsync<,>));
-
-            services.AddSingleton<Dispatcher>(sp =>
+            // La validazione è opt-in (default abilitata). Se disabilitata, il percorso
+            // caldo non passa per alcun behavior (fast-path).
+            if (options.EnableValidation)
             {
-                var handlerMap = new Dictionary<Type, Func<IServiceProvider, object, object>>();
-                var notificationMap = new Dictionary<Type, List<Action<IServiceProvider, object>>>();
-                var asyncHandlerMap = new Dictionary<Type, Func<IServiceProvider, object, CancellationToken, Task<object>>>();
-                var asyncNotificationMap = new Dictionary<Type, List<Func<IServiceProvider, object, CancellationToken, Task>>>();
+                services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+                services.AddTransient(typeof(IPipelineBehaviorAsync<,>), typeof(ValidationBehaviorAsync<,>));
+            }
 
-                if (options.RegistrationMode == HandlerRegistrationMode.Startup ||
-                    options.RegistrationMode == HandlerRegistrationMode.Hybrid)
-                {
+            // Costruisce le mappe dei delegati una sola volta e le condivide tramite il registry (singleton).
+            var registry = BuildRegistry(services, options);
+            services.AddSingleton(registry);
 
-                    // Ottieni tutti i tipi di handler registrati
-                    var requestHandlerTypes = services
-                        .Where(sd => sd.ServiceType.IsGenericType &&
-                                     sd.ServiceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>))
-                        .ToList();
-
-                    // Per ogni tipo di handler di richieste
-                    foreach (var descriptor in requestHandlerTypes)
-                    {
-                        var serviceType = descriptor.ServiceType;
-                        var requestType = serviceType.GenericTypeArguments[0];
-                        var responseType = serviceType.GenericTypeArguments[1];
-
-                        // Creiamo il tipo della factory
-                        var factoryType = typeof(RequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
-
-                        // Chiamiamo il metodo statico CreateHandler
-                        var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
-                        var handlerDelegate = (Func<IServiceProvider, object, object>)createMethod.Invoke(null, null);
-
-                        // Aggiungiamo il delegato alla mappa
-                        handlerMap[requestType] = handlerDelegate;
-                    }
-                    // Aggiungiamo gli handler asincroni
-                    var asyncRequestHandlerTypes = services
-                        .Where(sd => sd.ServiceType.IsGenericType &&
-                                     sd.ServiceType.GetGenericTypeDefinition() == typeof(IAsyncRequestHandler<,>))
-                        .ToList();
-
-                    foreach (var descriptor in asyncRequestHandlerTypes)
-                    {
-                        var serviceType = descriptor.ServiceType;
-                        var requestType = serviceType.GenericTypeArguments[0];
-                        var responseType = serviceType.GenericTypeArguments[1];
-
-                        // Creiamo il tipo della factory
-                        var factoryType = typeof(AsyncRequestHandlerFactory<,>).MakeGenericType(requestType, responseType);
-
-                        // Chiamiamo il metodo statico CreateHandler
-                        var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
-                        var handlerDelegate = (Func<IServiceProvider, object, CancellationToken, Task<object>>)createMethod.Invoke(null, null);
-
-                        // Aggiungiamo il delegato alla mappa
-                        asyncHandlerMap[requestType] = handlerDelegate;
-                    }
-
-                }
-
-                // Ottieni tutti i tipi di handler di notifiche registrati
-                var notificationHandlerTypes = services
-                    .Where(sd => sd.ServiceType.IsGenericType &&
-                                 sd.ServiceType.GetGenericTypeDefinition() == typeof(INotificationHandler<>))
-                    .ToList();
-
-                // Per ogni tipo di handler di notifiche
-                foreach (var descriptor in notificationHandlerTypes)
-                {
-                    var notificationType = descriptor.ServiceType.GenericTypeArguments[0];
-
-                    // Creiamo il tipo della factory
-                    var factoryType = typeof(NotificationHandlerFactory<>).MakeGenericType(notificationType);
-
-                    // Chiamiamo il metodo statico CreateHandler
-                    var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
-                    var handlerAction = (Action<IServiceProvider, object>)createMethod.Invoke(null, null);
-
-                    // Aggiungiamo l'azione alla mappa
-                    if (!notificationMap.ContainsKey(notificationType))
-                        notificationMap[notificationType] = new List<Action<IServiceProvider, object>>();
-
-                    notificationMap[notificationType].Add(handlerAction);
-                }
-
-                // Ottieni tutti i tipi di handler di notifiche asincrone registrati
-                var asyncNotificationHandlerTypes = services
-                    .Where(sd => sd.ServiceType.IsGenericType &&
-                                 sd.ServiceType.GetGenericTypeDefinition() == typeof(IAsyncNotificationHandler<>))
-                    .ToList();
-
-                // Per ogni tipo di handler di notifiche asincrone
-                foreach (var descriptor in asyncNotificationHandlerTypes)
-                {
-                    var notificationType = descriptor.ServiceType.GenericTypeArguments[0];
-
-                    // Creiamo il tipo della factory
-                    var factoryType = typeof(AsyncNotificationHandlerFactory<>).MakeGenericType(notificationType);
-
-                    // Chiamiamo il metodo statico CreateHandler
-                    var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static);
-                    var handlerFunc = (Func<IServiceProvider, object, CancellationToken, Task>)createMethod.Invoke(null, null);
-
-                    // Aggiungiamo la funzione alla mappa
-                    if (!asyncNotificationMap.ContainsKey(notificationType))
-                        asyncNotificationMap[notificationType] = new List<Func<IServiceProvider, object, CancellationToken, Task>>();
-
-                    asyncNotificationMap[notificationType].Add(handlerFunc);
-                }
-
-                return new Dispatcher(sp, handlerMap, notificationMap, asyncHandlerMap, asyncNotificationMap, options);
-            });
+            // Il Dispatcher è scoped: risolve handler/behaviors dallo scope corrente (ambient).
+            services.AddScoped<Dispatcher>(sp => new Dispatcher(sp, sp.GetRequiredService<DispatcherRegistry>()));
 
             return services;
+        }
+
+        /// <summary>
+        /// Alias obsoleto di <see cref="AddFastMediator(IServiceCollection, Action{FastMediatorOptions})"/>.
+        /// </summary>
+        [Obsolete("Usare AddFastMediator. Questo alias verrà rimosso in una versione futura.")]
+        public static IServiceCollection AddCustomMediator(this IServiceCollection services, Action<FastMediatorOptions>? configureOptions = null)
+            => AddFastMediator(services, configureOptions);
+
+        /// <summary>
+        /// Alias obsoleto di <see cref="AddFastMediator(IServiceCollection, Func{ITypeSourceSelector, IImplementationTypeSelector}, Action{FastMediatorOptions})"/>.
+        /// </summary>
+        [Obsolete("Usare AddFastMediator. Questo alias verrà rimosso in una versione futura.")]
+        public static IServiceCollection AddCustomMediator(
+            this IServiceCollection services,
+            Func<ITypeSourceSelector, IImplementationTypeSelector> configureScanner,
+            Action<FastMediatorOptions>? configureOptions = null)
+            => AddFastMediator(services, configureScanner, configureOptions);
+
+        private static DispatcherRegistry BuildRegistry(IServiceCollection services, FastMediatorOptions options)
+        {
+            var handlerMap = new Dictionary<Type, Func<IServiceProvider, object, object>>();
+            var notificationMap = new Dictionary<Type, List<Action<IServiceProvider, object>>>();
+            var asyncHandlerMap = new Dictionary<Type, Func<IServiceProvider, object, CancellationToken, Task<object>>>();
+            var asyncNotificationMap = new Dictionary<Type, List<Func<IServiceProvider, object, CancellationToken, Task>>>();
+
+            // In modalità Startup/Hybrid compiliamo subito i delegati degli handler delle richieste.
+            if (options.RegistrationMode == HandlerRegistrationMode.Startup ||
+                options.RegistrationMode == HandlerRegistrationMode.Hybrid)
+            {
+                foreach (var descriptor in GetClosedServices(services, typeof(IRequestHandler<,>)))
+                {
+                    var requestType = descriptor.ServiceType.GenericTypeArguments[0];
+                    var responseType = descriptor.ServiceType.GenericTypeArguments[1];
+                    handlerMap[requestType] = CreateDelegate<Func<IServiceProvider, object, object>>(
+                        typeof(RequestHandlerFactory<,>), requestType, responseType);
+                }
+
+                foreach (var descriptor in GetClosedServices(services, typeof(IAsyncRequestHandler<,>)))
+                {
+                    var requestType = descriptor.ServiceType.GenericTypeArguments[0];
+                    var responseType = descriptor.ServiceType.GenericTypeArguments[1];
+                    asyncHandlerMap[requestType] = CreateDelegate<Func<IServiceProvider, object, CancellationToken, Task<object>>>(
+                        typeof(AsyncRequestHandlerFactory<,>), requestType, responseType);
+                }
+            }
+
+            // Gli handler delle notifiche vengono sempre mappati all'avvio.
+            foreach (var descriptor in GetClosedServices(services, typeof(INotificationHandler<>)))
+            {
+                var notificationType = descriptor.ServiceType.GenericTypeArguments[0];
+                var handlerAction = CreateDelegate<Action<IServiceProvider, object>>(
+                    typeof(NotificationHandlerFactory<>), notificationType);
+
+                if (!notificationMap.TryGetValue(notificationType, out var list))
+                {
+                    list = new List<Action<IServiceProvider, object>>();
+                    notificationMap[notificationType] = list;
+                }
+                list.Add(handlerAction);
+            }
+
+            foreach (var descriptor in GetClosedServices(services, typeof(IAsyncNotificationHandler<>)))
+            {
+                var notificationType = descriptor.ServiceType.GenericTypeArguments[0];
+                var handlerFunc = CreateDelegate<Func<IServiceProvider, object, CancellationToken, Task>>(
+                    typeof(AsyncNotificationHandlerFactory<>), notificationType);
+
+                if (!asyncNotificationMap.TryGetValue(notificationType, out var list))
+                {
+                    list = new List<Func<IServiceProvider, object, CancellationToken, Task>>();
+                    asyncNotificationMap[notificationType] = list;
+                }
+                list.Add(handlerFunc);
+            }
+
+            return new DispatcherRegistry(handlerMap, notificationMap, asyncHandlerMap, asyncNotificationMap, options);
+        }
+
+        private static IEnumerable<ServiceDescriptor> GetClosedServices(IServiceCollection services, Type openGeneric)
+        {
+            return services.Where(sd =>
+                sd.ServiceType.IsGenericType &&
+                sd.ServiceType.GetGenericTypeDefinition() == openGeneric);
+        }
+
+        private static TDelegate CreateDelegate<TDelegate>(Type openFactory, params Type[] typeArgs)
+        {
+            var factoryType = openFactory.MakeGenericType(typeArgs);
+            var createMethod = factoryType.GetMethod("CreateHandler", BindingFlags.Public | BindingFlags.Static)!;
+            return (TDelegate)createMethod.Invoke(null, null)!;
         }
     }
 }

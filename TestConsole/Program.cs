@@ -40,7 +40,7 @@ public class Program
         var serviceProvider = services.BuildServiceProvider();
         var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
-        services.AddCustomMediator(scan => scan.FromAssemblyOf<Program>(),options =>
+        services.AddFastMediator(scan => scan.FromAssemblyOf<Program>(),options =>
         {
             options.EnableDiagnostics = false;
             options.EnableTiming = true;
@@ -76,3 +76,4 @@ public class Program
 
     }
 }
+

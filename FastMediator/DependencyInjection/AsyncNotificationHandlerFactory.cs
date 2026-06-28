@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastMediator.Caching;
@@ -7,35 +8,31 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FastMediator.DependencyInjection
 {
-    // Classe helper tipizzata per ogni tipo di notifica asincrona
+    /// <summary>
+    /// Classe helper tipizzata per ogni tipo di notifica asincrona. Risolve gli handler
+    /// dallo scope corrente (ambient) senza creare un nuovo scope.
+    /// </summary>
     public class AsyncNotificationHandlerFactory<TNotification>
         where TNotification : IAsyncNotification
     {
-        // Metodo statico che crea il delegato per l'handler asincrono
+        /// <summary>
+        /// Crea (o recupera dalla cache) il delegato per gli handler della notifica asincrona.
+        /// </summary>
         public static Func<IServiceProvider, object, CancellationToken, Task> CreateHandler()
         {
             return DelegateCache.Instance.GetOrCreateAsyncNotificationHandler<TNotification>(() =>
             {
-                return async (provider, notification, cancellationToken) =>
+                return (provider, notification, cancellationToken) =>
                 {
-                    var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+                    var handlers = provider.GetServices<IAsyncNotificationHandler<TNotification>>();
 
-                    // Crea un nuovo scope
-                    using (var scope = scopeFactory.CreateScope())
+                    var tasks = new List<Task>();
+                    foreach (var handler in handlers)
                     {
-                        // Ottieni tutti gli handler per questa notifica dallo scope creato
-                        var handlers = scope.ServiceProvider.GetServices<IAsyncNotificationHandler<TNotification>>();
-
-                        // Crea task per tutti gli handler
-                        var tasks = new List<Task>();
-                        foreach (var handler in handlers)
-                        {
-                            tasks.Add(handler.HandleAsync((TNotification)notification, cancellationToken));
-                        }
-
-                        // Attendi il completamento di tutti gli handler
-                        await Task.WhenAll(tasks);
+                        tasks.Add(handler.HandleAsync((TNotification)notification, cancellationToken));
                     }
+
+                    return Task.WhenAll(tasks);
                 };
             });
         }

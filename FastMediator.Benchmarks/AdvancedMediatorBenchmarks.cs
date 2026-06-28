@@ -56,7 +56,7 @@ namespace FastMediator.Benchmarks
             var services = new ServiceCollection();
 
             // Registra i servizi base
-            services.AddCustomMediator(scan => scan.FromAssemblyOf<AdvancedMediatorBenchmarks>(), options =>
+            services.AddFastMediator(scan => scan.FromAssemblyOf<AdvancedMediatorBenchmarks>(), options =>
             {
                 options.RegistrationMode = HandlerRegistrationMode.Startup;
                 options.EnableDiagnostics = false;
